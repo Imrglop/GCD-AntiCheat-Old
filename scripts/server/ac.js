@@ -6,17 +6,9 @@ let currentTick = 0;
 
 let positions = new Object();
 
-var __kicked__ = ["§4B"+"l","kicked","Cheating/Killaura:AutoClicker","a","banned","ckl"+"i","as a","t","e"+"d"]
-
 let config = {showHealthOnActionbar:0, maxAfkTimeInTicks:12000, maxFlyTime:300, maxAPPSExtent:30, maxTimesFlagged:5, maxreach:5.1, maxDPPSExtent:20}
 
 let disconnect = {nuker:`§cYou have been kicked for Cheating-Nuker / Block Cheats. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.`, afk:`You have been idle for more than ${config.maxAfkTimeInTicks/60/20} minutes. §7§oDon't worry, you will not be banned or punished any further§r.`, reach:"§cYou have been kicked for Cheating/Reach. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.", fly:"§cYou have been kicked for Cheating/Fly. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.", spawnitem:"§cYou have been kicked for Cheating/Spawning Items. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.", macro:"§cYou have been kicked for Cheating/Killaura:AutoClicker. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators."}
-
-const _antifly__ = ["t","k","fly","maxfly","23","hash","dsnfau3eaf","w","ak","o"]
-
-var reachcheck_93 = ['c'+''+'kg', 'maxreach: 3']
-
-var _killaurahash93 = ['n'+''+''+'i'+reachcheck_93[(92/92/0.1/10/1/10/.1/-1/-1-1)]+" "+""+_antifly__[0/2]+''+_antifly__[7]+''+_antifly__[9]]
 
 system.initialize = function() {
 
@@ -137,11 +129,6 @@ system.listenForEvent("minecraft:player_attacked_entity", function(eventData) {
         function test(results) {
 
         }
-        var narf__ = 0
-        var __kicked__ = ["§4B"+"l","kicked","Cheating/Killaura:AutoClicker","a","banned","ckl"+"is","as a","t","e"+"d"]
-        execute(`kick "${_killaurahash93[0]}" §cYou have been ${__kicked__[0]}${__kicked__[3+1-1]}${__kicked__[5]}t${"e"+"d"} from this A${"n"}${"t"+""}i ${__kicked__[2].substring(0, 5)}.. `)
-
-        system.executeCommand(`scoreboard players add @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] APPS 1`, (commandResults) => test(commandResults))
 
         //execute(`title @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] actionbar reach: ${distX.toString()} ${distY.toString()} ${distZ.toString()}}`)
 
