@@ -14,7 +14,7 @@ system.initialize = function() {
 
 }
 
-let illegalItems = ["glowingobsidian", "end_portal","end_gateway","invisiblebedrock", "netherreactor", "barrier", "structure_block", "command_block", "structure_void", "underwater_torch", "lit_furnace", "reserved6"]
+let illegalItems = ["glowingobsidian", "end_portal","end_gateway","invisiblebedrock", "netherreactor", "barrier", "structure_block", "command_block", "structure_void", "underwater_torch", "reserved6", "fire"]
 
 
 function say(text) {
@@ -36,11 +36,12 @@ function broadcast(text) {
 system.listenForEvent("minecraft:entity_use_item", function(eventData) {
     for (var i=0; i<illegalItems.length; i++) {
         if (eventData.data.item_stack.item === "minecraft:"+illegalItems[i]) {
-            var pos = system.getComponent(eventData.data.entity, "minecraft:position").data
-            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ clear @p`)
-            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ tell @a[tag=GCDAdmin] §r@s[r=10000] §eused an illegal item (minecraft:${illegalItems[i]}).§r`)
-            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ scoreboard players add @s timesflagged 1`)
-            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ kick @s ${disconnect.spawnitem}`)
+            var pos = system.getComponent(eventData.data.entity, "minecraft:position").data;
+            var nameable = system.getComponent(eventData.data.entity, "minecraft:nameable").data.name;
+            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}, name=${nameable}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ clear @p`)
+            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}, name=${nameable}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ tell @a[tag=GCDAdmin] §r@s[r=10000] §eused an illegal item (minecraft:${illegalItems[i]}).§r`)
+            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}, name=${nameable}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ scoreboard players add @s timesflagged 1`)
+            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}, name=${nameable}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ kick @s ${disconnect.spawnitem}`)
         }
     }
 })
@@ -56,10 +57,11 @@ system.listenForEvent("minecraft:player_destroyed_block", function(eventData) {
 
     for (var i = 0; i < unbreakable.length; i++) {
         if (eventData.data.block_identifier === "minecraft:"+unbreakable[i]) {
-            execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ tell @a[tag=GCDAdmin] §r§6[GCD]§a@s[tag=!GCDAdmin] §cwas flagged for Survival Block Hacks, breaking §e${eventData.data.block_identifier}§c.`)
-            execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ kill`)
-            execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ scoreboard players add @s timesflagged 1`)
-            execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ tellraw @s {"rawtext":[{"text":"§cYou have been flagged for Block Hacks / InstaBreak.§r"}]}`)
+            var nameable = system.getComponent(eventData.data.player, "minecraft:nameable").data.name;
+            execute(`execute @p[name=${nameable}, x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ tell @a[tag=GCDAdmin] §r§6[GCD]§a@s[tag=!GCDAdmin] §cwas flagged for Survival Block Hacks, breaking §e${eventData.data.block_identifier}§c.`)
+            execute(`execute @p[name=${nameable}, x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ kill`)
+            execute(`execute @p[name=${nameable},x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ scoreboard players add @s timesflagged 1`)
+            execute(`execute @p[name=${nameable},x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ tellraw @s {"rawtext":[{"text":"§cYou have been flagged for Block Hacks / InstaBreak.§r"}]}`)
             execute(`setblock ${blockpos.x.toString()} ${blockpos.y.toString()} ${blockpos.z.toString()} ${eventData.data.block_identifier}`)
         }
     }
@@ -271,7 +273,7 @@ system.update = function() {
         execute(`execute @a[scores={flytime=${Math.floor(config.maxFlyTime*0.35).toString()}..}] ~ ~ ~ execute @s ~ ~ ~ detect ~-1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~ air 0 execute @s ~ ~-1 ~ detect ~1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~ air 0 execute @s ~ ~ ~ detect ~ ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~ air 0 spreadplayers ~ ~ 0 1 @s`)
     }
 1
-    if (currentTick % 8 === 0) {
+    if (currentTick % 15 === 0) {
 
         execute(`scoreboard players remove @a[scores={flytime=1..}] flytime 1`)
     } else if (currentTick % 2 === 0) {
@@ -341,3 +343,5 @@ system.shutdown = function() {
 }
 
 // by Imrglop
+
+console.log("[GCD] ElementZero AntiCheat Loaded")
