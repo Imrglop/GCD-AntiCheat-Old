@@ -97,7 +97,7 @@ function broadcast(text, tag) {
         realTag = tag
     } else realtag = "GCDAdmin";
     execute(`tellraw @a[tag=${realTag}] {"rawtext":[{"text":"§r§6[GCD]§2 ${text}"}]}`)
-    console.log(`Broadcast: ${text}`)
+    server.log(`Broadcast: ${text}`)
 }
 
 
@@ -326,7 +326,7 @@ system.listenForEvent("minecraft:block_destruction_started", function(eventData)
         }
 });
 
-let clipBlocks = ["stone", "bedrock", "dirt", "grass", "quartz_block", "planks", "wood", "log", "concrete", "stained_hardened_clay"]
+let clipBlocks = ["stone", "bedrock", "dirt", "grass", "quartz_block", "planks", "wood", "log", "concrete", "stained_hardened_clay"];
 
 system.update = function() {
 
@@ -335,15 +335,15 @@ system.update = function() {
     }
     
     for (let i = 0; i < clipBlocks.length; i++) {
-        execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 tell @a[tag=noclipnotify] §r@s[r=1000] §eis possibly using No-Clip (Clipped through block §aminecraft:${clipBlocks[i]}).`)
+        execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 tell @a[tag=noclipnotify] §r@s[r=1000] §eis possibly using No-Clip (Clipped through block §aminecraft:${clipBlocks[i]}).`);
 
-        execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 effect @s instant_damage 1 0 true`)
+        execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 effect @s instant_damage 1 0 true`);
 
         execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 spreadplayers ~ ~ 0 1 @s`)
     }
 
     // Import Settings
-    
+
     function cmdCallback(results) {
         let statusMessage = results.data.statusMessage
         let subbed = (statusMessage.split(" "))
@@ -353,7 +353,7 @@ system.update = function() {
         }
     }
 
-    system.executeCommand("scoreboard players test flytime GCD -2147483648", (commandResults) => cmdCallback(commandResults))
+    system.executeCommand("scoreboard players test maxflytime GCD -2147483648", (commandResults) => cmdCallback(commandResults))
 
     function setShowHealth(results) {
         let statusMessage = results.data.statusMessage
@@ -405,7 +405,7 @@ system.update = function() {
     }
     
 
-    system.executeCommand("scoreboard players test neverKick GCD -2147483648", (commandResults) => setKickStatus(commandResults))
+    system.executeCommand("scoreboard players test neverkick GCD -2147483648", (commandResults) => setKickStatus(commandResults))
 
     function setDebugMode(results) {
         let statusMessage = results.data.statusMessage
@@ -419,9 +419,21 @@ system.update = function() {
         }
     }
     }
-    
 
-    system.executeCommand("scoreboard players test debugMode GCD -2147483648", (commandResults) => setDebugMode(commandResults))
+    system.executeCommand("scoreboard players test debugmode GCD -2147483648", (commandResults) => setDebugMode(commandResults))
+
+    function setMaxCrystals(results) {
+        let statusMessage = results.data.statusMessage
+        let subbed = (statusMessage.split(" "))
+
+        if (Number(subbed[1]) != null) {
+        if (Number(subbed[1]) > 1) {
+            config.setMaxCrystals = Number(subbed[1])
+        }
+    }
+    }
+
+    system.executeCommand("scoreboard players test maxcrystals GCD -2147483648", (commandResults) => setMaxCrystals(commandResults))
 
 
     // FLYHACK
@@ -524,9 +536,9 @@ system.update = function() {
 }
 
 system.shutdown = function() {
-    console.log(`[GCD] Shutting down AC..`);
+    server.log(`[GCD] Shutting down AC..`);
 }
 
-console.log("[GCD] by Imrglop loaded.");
+server.log("[GCD] by Imrglop loaded.");
 
 // by Imrglop

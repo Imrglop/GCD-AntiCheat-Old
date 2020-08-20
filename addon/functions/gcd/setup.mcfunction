@@ -11,8 +11,9 @@ scoreboard objectives add reachflags dummy
 
 scoreboard players add nukerinterval GCD 0
 scoreboard players add maxtimesflagged GCD 0
-scoreboard players add flytime GCD 0
+scoreboard players add maxflytime GCD 0
 scoreboard players add showhealth GCD 0
-scoreboard players add debugMode GCD 0
+scoreboard players add debugmode GCD 0
+scoreboard players add neverkick GCD 0
 
 HIDE
