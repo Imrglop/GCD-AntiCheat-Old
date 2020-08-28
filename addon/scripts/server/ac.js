@@ -71,8 +71,6 @@ var disconnect = {
 
 var currentTick = 0;
 
-var positions = new Object();
-
 // Functions
 
 function authorisePunishment() {
@@ -92,12 +90,12 @@ function authoriseDebug() {
 //
 
 function broadcast(text, tag) {
+    server.log(`Broadcast: ${text.toString()}`)
     let realTag
     if (tag) {
         realTag = tag
     } else realtag = "GCDAdmin";
     execute(`tellraw @a[tag=${realTag}] {"rawtext":[{"text":"§r§6[GCD]§2 ${text}"}]}`)
-    server.log(`Broadcast: ${text}`)
 }
 
 
@@ -113,18 +111,6 @@ function execute(command, fr) {
 //
 
 // Listen For Events
-
-system.listenForEvent("minecraft:entity_created", function(eventData) {
-    if (eventData.data.entity.__identifier__ === "minecraft:player") {
-        positions[positions.length] = eventData.data.entity;
-        if (authoriseDebug) {
-            for (let i = 0; i < Object.keys(positions).length; i++)
-            broadcast(`Players: ${positions[i]}`);
-        }
-    }
-});
-
-//
 
 system.listenForEvent("minecraft:entity_use_item", function(eventData) {
     for (let i=0; i<illegalItems.length; i++) {

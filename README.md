@@ -22,7 +22,7 @@ No-clip\
 CrystalAura
 
 # Version
-Version: 1.3.2\
+Version: 1.3.3\
 \
 Works On: 1.16
 # Information
