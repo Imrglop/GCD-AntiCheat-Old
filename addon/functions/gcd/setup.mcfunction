@@ -6,6 +6,7 @@ scoreboard objectives add DPPS dummy DestroyPackets
 scoreboard objectives add APPS dummy AttackPackets
 scoreboard objectives add timesflagged dummy
 scoreboard objectives add reachflags dummy
+scoreboard objectives add crystals dummy
 
 # players
 

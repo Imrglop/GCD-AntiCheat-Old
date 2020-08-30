@@ -19,7 +19,8 @@ Illegal Items\
 X-Ray Notifier\
 Fly\
 No-clip\
-CrystalAura
+CrystalAura\
+AdventureModeBypass
 
 # Version
 Version: 1.3.3\

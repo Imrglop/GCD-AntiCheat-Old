@@ -15,6 +15,31 @@ system.initialize = function() {
 
 }
 
+var clipBlocks = [
+  "stone",
+  "bedrock", 
+  "dirt", 
+  "grass", 
+  "quartz_block", 
+  "planks", 
+  "wood", 
+  "log", 
+  "concrete", 
+  "stained_hardened_clay"
+];
+
+var unbreakable = [
+  "invisiblebedrock",
+  "end_portal",
+  "end_gateway",
+  "barrier",
+  "bedrock",
+  "border_block",
+  "structure_block",
+  "structure_void",
+  "end_portal_frame",
+  "light_block",
+];  
 
 var illegalItems = [
   "glowingobsidian",
@@ -51,7 +76,7 @@ var config = {
   "maxCrystals":10,
   "showHealthOnActionbar":0,
   "maxAfkTimeInTicks":12000,
-  "maxFlyTime":180,
+  "maxFlyTime":360,
   "maxAPPSExtent":30,
   "maxTimesFlagged":8,
   "maxReach":4.7,
@@ -117,7 +142,7 @@ system.listenForEvent("minecraft:entity_use_item", function(eventData) {
 
         if (eventData.data.item_stack.item === "minecraft:end_crystal") {
             let pos = system.getComponent(eventData.data.entity, "minecraft:position").data
-            execute(`scoreboard players set @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] crystals 1`)
+            execute(`scoreboard players add @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] crystals 1`)
         }
 
         if (eventData.data.item_stack.item === "minecraft:"+illegalItems[i]) {
@@ -156,10 +181,6 @@ system.listenForEvent("minecraft:player_destroyed_block", function(eventData) {
     }
 
     let blockpos = eventData.data.block_position;
-
-    let unbreakable = ["invisiblebedrock","end_portal","end_gateway","barrier","bedrock","border_block","structure_block","structure_void","end_portal_frame"];
-
-    
     
     for (let i = 0; i < unbreakable.length; i++) {
         if (eventData.data.block_identifier === "minecraft:"+unbreakable[i]) {
@@ -167,7 +188,6 @@ system.listenForEvent("minecraft:player_destroyed_block", function(eventData) {
             execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ kill`)
             execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ scoreboard players add @s timesflagged 1`)
             execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ tellraw @s {"rawtext":[{"text":"§cYou have been flagged for Block Hacks / InstaBreak.§r"}]}`)
-            execute(`say ${blockpos.x.toString()} ${blockpos.y.toString()} ${blockpos.z.toString()} ${eventData.data.block_identifier}`)
         }
     }
 
@@ -182,6 +202,7 @@ system.listenForEvent("minecraft:player_destroyed_block", function(eventData) {
 
     if (distX >= maxblockreach || distY >= maxblockreach || distZ >= maxblockreach) {
         execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[m=s, tag=!GCDAdmin] ~ ~ ~ tell @a[tag=blockreachnotify] §r§6[GCD]§a @s[tag=!GCDAdmin] §cwas flagged for Survival Block Reach, reaching ${distX.toString()} x ${distY.toString()} y ${distZ.toString()} z blocks.`)
+        execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ scoreboard players add @s[m=s, tag=!GCDAdmin] timesflagged 1`)
     }
     
     execute(`scoreboard players add @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] DPPS 1`)
@@ -290,7 +311,7 @@ system.listenForEvent("minecraft:player_attacked_entity", function(eventData) {
 
 })
 
-system.listenForEvent("minecraft:block_destruction_started", function(eventData) {
+system.listenForEvent("minecraft:block_destruction_stopped", function(eventData) { // changed to stopped instead of started to stop flase flags when you are breaking a block in the middle of being teleported
 
         let pos = system.getComponent(eventData.data.player, "minecraft:position").data;
     
@@ -311,8 +332,6 @@ system.listenForEvent("minecraft:block_destruction_started", function(eventData)
             execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}, tag=!GCDAdmin] ~ ~ ~ execute @s[r=0] ~ ~ ~ scoreboard players add @s timesflagged 1`)
         }
 });
-
-let clipBlocks = ["stone", "bedrock", "dirt", "grass", "quartz_block", "planks", "wood", "log", "concrete", "stained_hardened_clay"];
 
 system.update = function() {
 
@@ -447,6 +466,7 @@ system.update = function() {
     }
 
     if (currentTick % 50 === 0) {
+        execute(`tag @a add GCD_VERIFY1392`)
         execute(`scoreboard players set @a[scores={reachflags=!0}] reachflags 0`);
     }
 
@@ -455,30 +475,32 @@ system.update = function() {
         execute(`scoreboard players remove @a[scores={flytime=1..}] flytime 1`)
     } else if (currentTick % 2 === 0) {
         execute(`scoreboard players remove @a[scores={APPS=1..}] APPS 1`)
+        execute(`scoreboard players add @a[scores={APPS=..-1}] APPS 1`)
+        execute(`execute @a[scores={APPS=${config.maxAPPSExtent}..},tag=!GCDAdmin] ~ ~ ~ tell @a[tag=killauranotify] §r§e @s §cwas flagged for Killaura.§r`)
+        execute(`scoreboard players set @a[scores={APPS=${config.maxAPPSExtent}..},tag=!GCDAdmin] APPS -5`)
+        execute(`scoreboard players add @a[scores={APPS=-5},tag=!GCDAdmin] timesflagged 1`)
+
+        // NUKER
+
+        execute(`execute @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin] ~ ~ ~ execute @s ~ ~ ~ tell @a[tag=nukernotify] §r§e @s §cwas flagged for Nuker.§r`)
+        execute(`scoreboard players set @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin], tag=!GCDAdmin] DPPS -5`)
+        execute(`scoreboard players add @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}] timesflagged 1`)
+
+        //
+        execute(`execute @e[type=player, tag=!GCDAdmin, m=!c] ~ ~ ~ detect ~ ~-2 ~ air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~ air 0 execute @s ~ ~-1 ~ detect ~1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~ air 0 execute @s ~ ~ ~ detect ~ ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~ air 0 scoreboard players add @s flytime 1`)
+
+        execute(`tell @a[tag=GCDConfig] say GCD Config (/function gcd/help): ${JSON.stringify(config, null, " ")})`);   
+
+        execute(`tag @a remove GCDConfig`);
     }
+
     // KILLAURA
-    execute(`scoreboard players add @a[scores={APPS=..-1}] APPS 1`)
-    execute(`execute @a[scores={APPS=${config.maxAPPSExtent}..},tag=!GCDAdmin] ~ ~ ~ tell @a[tag=killauranotify] §r§e @s §cwas flagged for Killaura.§r`)
-    execute(`scoreboard players set @a[scores={APPS=${config.maxAPPSExtent}..},tag=!GCDAdmin] APPS -5`)
-    execute(`scoreboard players add @a[scores={APPS=-5},tag=!GCDAdmin] timesflagged 1`)
 
     if (authorisePunishment() == true) {
         execute(`kick @a[scores={APPS=-5},tag=!GCDAdmin] ${disconnect.macro}`)
+        execute(`kick @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin] ${disconnect.nuker}`)
     }
     //
-
-    // NUKER
-
-    execute(`execute @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin] ~ ~ ~ execute @s ~ ~ ~ tell @a[tag=nukernotify] §r§e @s §cwas flagged for Nuker.§r`)
-    execute(`scoreboard players set @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin], tag=!GCDAdmin] DPPS -5`)
-    execute(`scoreboard players add @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}] timesflagged 1`)
-    execute(`scoreboard objectives add crystals dummy`)
-
-    if (authorisePunishment() == true) {
-
-        execute(`kick @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin] ${disconnect.nuker}`)
-
-    }
     
     execute(`kick @a[scores={crystals=${config.maxDPPSExtent.toString()}..}] Too many packets`)
 
@@ -487,14 +509,6 @@ system.update = function() {
     execute(`scoreboard players reset @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin] DPPS`)
 
     //
-
-    execute(`execute @e[type=player, tag=!GCDAdmin, m=!c] ~ ~ ~ detect ~ ~-2 ~ air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~ air 0 execute @s ~ ~-1 ~ detect ~1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~ air 0 execute @s ~ ~ ~ detect ~ ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~ air 0 scoreboard players add @s flytime 1`)
-    
-    execute(`kick @a[tag=GCDBanned] §cYou have been banned from the server.§r`)
-
-    execute(`tell @a[tag=GCDConfig] say GCD Config (/function gcd/help): ${JSON.stringify(config, null, " ")})`);   
-
-    execute(`tag @a remove GCDConfig`);
 
     
 
@@ -514,11 +528,10 @@ system.update = function() {
     
     execute(`scoreboard players reset @a DPPS`)
 
-    execute(`function gcd/speedcheck`)
-
-    execute(`tag @a add GCD_VERIFY1392`)
-
     execute(`scoreboard players remove @a[scores={crystals=2..}] crystals 1`)
+
+    execute(`kick @a[tag=GCDBanned] §cYou have been banned from the server.§r`)
+
 }
 
 system.shutdown = function() {
