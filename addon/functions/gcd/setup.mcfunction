@@ -10,6 +10,7 @@ scoreboard objectives add crystals dummy
 
 # players
 
+scoreboard players add maxreachtimes GCD 0
 scoreboard players add nukerinterval GCD 0
 scoreboard players add maxtimesflagged GCD 0
 scoreboard players add maxflytime GCD 0
