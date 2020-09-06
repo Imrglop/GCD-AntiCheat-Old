@@ -28,4 +28,4 @@ Version: 1.3.3\
 Works On: 1.16
 # Information
 \
-No anti cheat is perfect so this one isn't perfect. Right now there is a problem with occasional false flagging for flags such as Reach (reduced in 1.3.2), Flight and occasional No-clip (both are currently command-based). If you are testing this, to make sure players don't get kicked when they cheat, do /scoreboard players set neverKick GCD 1. This will give them a timesflagged count, but won't kick them when they get flagged. However, if they have been flagged for enough times, they will get auto-banned.
+No anti cheat is perfect so this one isn't perfect. Right now there is a problem with rare false flagging for Flight and occasional No-clip. If you are testing this, to make sure players don't get kicked when they cheat, run `/scoreboard players set neverkick GCD 1`. This will give them a timesflagged count, but won't kick them when they get flagged. However, if they have been flagged for enough times, they will get auto-banned.

@@ -15,17 +15,17 @@ system.initialize = function() {
 
 }
 
-var clipBlocks = [
+var clipBlocks = [ // Too many clip blocks will lag the server, make sure you only put solid blocks
   "stone",
-  "bedrock", 
+  //"bedrock", 
   "dirt", 
   "grass", 
-  "quartz_block", 
+  //"quartz_block", 
   "planks", 
   "wood", 
-  "log", 
-  "concrete", 
-  "stained_hardened_clay"
+  //"log", 
+  //"concrete", 
+  //"stained_hardened_clay"
 ];
 
 var unbreakable = [
@@ -71,15 +71,15 @@ var xrayBlocks = [
 ]
   
 var config = {
-  "debugMode":false,
+  "debugMode":true,
   "kickPlayerOnFlag":true,
   "maxCrystals":10,
   "showHealthOnActionbar":0,
   "maxAfkTimeInTicks":12000,
-  "maxFlyTime":360,
+  "maxFlyTime":100, // max ticks to fly before getting kicked
   "maxAPPSExtent":30,
   "maxTimesFlagged":8,
-  "maxReach":4.5, // latency cannot be measured, setting this to 3 is not recommended
+  "maxReach":3.5, // latency cannot be measured, setting this to 3 is not recommended
   "maxDPPSExtent":10,
   "maxReachUses":3 // max times they can hit a mob far away before getting flagged
 }
@@ -90,8 +90,10 @@ var disconnect = {
   "reach":"§cYou have been kicked for Cheating/Reach. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.",
   "fly":"§cYou have been kicked for Cheating/Fly. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.",
   "spawnitem":"§cYou have been kicked for Cheating/Spawning Items. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.",
-  "macro":"§cYou have been kicked for Cheating/Killaura:AutoClicker. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.",
-  "adventurebypass":"§cYou have been kicked for Cheating-AdventureBypass / Block Cheats. If you keep doing so, you may get banned. §r If you believe this is an error, contact the server administrators."
+  "macro":"§cYou have been kicked for Cheating/Killaura or AutoClicker. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.",
+  "adventurebypass":"§cYou have been kicked for Cheating-AdventureBypass / Block Cheats. If you keep doing so, you may get banned. §r If you believe this is an error, contact the server administrators.",
+  "crystalaura":"§cYou have been kicked for Cheating / CrystalAura.",
+  "toomanypackets":"You are sending too many packets. :("
 }
 
 
@@ -101,13 +103,6 @@ var currentTick = 0;
 
 function authorisePunishment() {
     if (config.kickPlayerOnFlag == true) {
-        return true;
-    }
-    return false;
-}
-
-function authoriseDebug() {
-    if (config.debugMode == true) {
         return true;
     }
     return false;
@@ -139,12 +134,15 @@ function execute(command, fr) {
 // Listen For Events
 
 system.listenForEvent("minecraft:entity_use_item", function(eventData) {
-    for (let i=0; i<illegalItems.length; i++) {
 
-        if (eventData.data.item_stack.item === "minecraft:end_crystal") {
-            let pos = system.getComponent(eventData.data.entity, "minecraft:position").data
-            execute(`scoreboard players add @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] crystals 1`)
-        }
+    if (eventData.data.item_stack.item === "minecraft:end_crystal") {
+        let pos = system.getComponent(eventData.data.entity, "minecraft:position").data
+        execute(`scoreboard players add @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] crystals 1`)
+    }
+
+    let result = false;
+
+    for (let i=0; i<illegalItems.length; i++) {
 
         if (eventData.data.item_stack.item === "minecraft:"+illegalItems[i]) {
             let pos = system.getComponent(eventData.data.entity, "minecraft:position").data
@@ -154,7 +152,10 @@ system.listenForEvent("minecraft:entity_use_item", function(eventData) {
             if (authorisePunishment() == true) {
                 execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ kick @s ${disconnect.spawnitem}`)
             }
+            result = true;
         }
+
+        if (result) return;
     }
 })
 
@@ -247,41 +248,45 @@ system.listenForEvent("minecraft:player_attacked_entity", function(eventData) {
 		
 
     if (attackedpos != undefined) {
+        let hitbox = [0.0, 0.0]; // width x height
+        if (system.hasComponent(attacked, "minecraft:collision_box")) { // does entity have a collision box component?
+            let hitboxC = system.getComponent(attacked, "minecraft:collision_box");
+            hitbox[0] = hitboxC.data.width;
+            hitbox[1] = hitboxC.data.height;
+        } else return; // if not, don't run this code
         
-        let distX = (Math.abs(attackedpos.x - attackerpos.x))
+        let distX = Math.abs(attackedpos.x - attackerpos.x) - hitbox[0]; // width hitbox is subtracted from it
 
-        let distY = (Math.abs(attackedpos.y - attackerpos.y))
+        let distY = Math.abs(attackedpos.y - attackerpos.y) - hitbox[1]; // remove height hitbox
 
-        let distZ = (Math.abs(attackedpos.z - attackerpos.z))
+        let distZ = Math.abs(attackedpos.z - attackerpos.z) - hitbox[0];
 
-        let distall = (distX + distZ) / 1.5
+        if (distX < 0) distX = 0;
+        if (distY < 0) distY = 0;
+        if (distZ < 0) distZ = 0;
+
+        let distall = ((distX + distZ) / 2) - hitbox[0]// get the more "rounded" version of the hitbox
+
+        if (distall < 0) distall = 0;
 
         if (attackedhealth.value != undefined) {
 
             if (config.showHealthOnActionbar == 1) {
 
-                execute(`title @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] actionbar §cHealth: ${(attackedhealth.value).toString()} / ${attackedhealth.max}`)
+                execute(`title @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] actionbar §cHealth: ${(attackedhealth.value).toString()} / ${attackedhealth.max}`);
 
             }
         }
 
         execute(`scoreboard players add @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] APPS 1`)
 
-        //execute(`title @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] actionbar reach: ${distX.toString()} ${distY.toString()} ${distZ.toString()}}`)
+        if (config.debugMode) {
+        
+            execute(`title @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] actionbar reach: ${distX.toString()} ${distY.toString()} ${distZ.toString()}}`)
 
+        }
 
         if (distX >= config.maxReach || distZ >= config.maxReach || distall >= config.maxReach - 0.5) {
-
-            let collision = system.getComponent(eventData.data.attacked_entity, "minecraft:collision_box");
-
-
-            if (collision == undefined) {
-                return;
-            }
-
-            if (collision.width > 2.0 || collision.height > 2.5) {
-                return;
-            }
 
             let nameable = system.getComponent(player, "minecraft:nameable").data.name;
 
@@ -303,16 +308,11 @@ system.listenForEvent("minecraft:player_attacked_entity", function(eventData) {
         }
     }
 
-    if (attacked === "minecraft:item" || attacked === "minecraft:xp_orb") {
-        execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ scoreboard players add @s[tag=!GCDAdmin] timesflagged 1`)
-        if (authorisePunishment) {
-            execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ kick @s[tag=!GCDAdmin] ${disconnect.macro}`)
-        }
-    }
+    // Player_attacked_entity doesn't target item or xp 
 
 })
 
-system.listenForEvent("minecraft:block_destruction_stopped", function(eventData) { // changed to stopped instead of started to stop flase flags when you are breaking a block in the middle of being teleported
+system.listenForEvent("minecraft:block_destruction_stopped", function(eventData) {
 
         let pos = system.getComponent(eventData.data.player, "minecraft:position").data;
     
@@ -323,12 +323,14 @@ system.listenForEvent("minecraft:block_destruction_stopped", function(eventData)
         let distY = (Math.abs(pos.y - blockpos.y))
         
         let distZ = (Math.abs(pos.z - blockpos.z))
+
+        let distall = (distX + distZ) / 2
     
         let maxblockreach = 15
     
         // InfiniteBlockReach Check 2 //
     
-        if (distX >= maxblockreach || distY >= maxblockreach || distZ >= maxblockreach) {
+        if (distX >= maxblockreach || distY >= maxblockreach || distZ >= maxblockreach || distall >= maxblockreach) {
             execute(`execute @p[x=${(pos.x).toString()}, y=${(pos.y).toString()}, z=${(pos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin] ~ ~ ~ tell @a[tag=blockreachnotify] §r§6[GCD]§e @s[tag=!GCDAdmin] §cfailed InfiniteBlockReach, reaching ${distX.toString().substring(0, 3)} x ${distY.toString().substring(0, 3)} y ${distZ.toString().substring(0, 3)} z blocks.`)
         }
 });
@@ -339,19 +341,30 @@ system.update = function() {
         execute(`function gcd/setup`)
     }
     
-    for (let i = 0; i < clipBlocks.length; i++) {
-        execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 tell @a[tag=noclipnotify] §r@s[r=1000] §eis possibly using No-Clip (Clipped through block §aminecraft:${clipBlocks[i]}).`);
+    if (currentTick % 2 == 0) {
+        for (let i = 0; i < clipBlocks.length; i++) {
 
-        execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 effect @s instant_damage 1 0 true`);
+            execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 tell @a[tag=noclipnotify] §r@s[r=1000] §efailed No-Clip (Clipped through block §aminecraft:${clipBlocks[i]}).`);
 
-        execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 spreadplayers ~ ~ 0 1 @s`)
+            execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 effect @s instant_damage 1 0 true`);
+
+            execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 spreadplayers ~ ~ 0 1 @s`);
+
+            execute(`scoreboard players add @a[scores={crystals=${config.maxCrystals.toString()}..}] timesflagged 1`);
+
+            if (authorisePunishment) {
+                execute(`kick @a[scores={crystals=${config.maxCrystals.toString()}..}] ${disconnect.crystalaura}`);
+            }
+
+            execute(`scoreboard players remove @a[scores={crystals=2..}] crystals 2`);
+        }
     }
 
     // Import Settings
 
     function cmdCallback(results) {
-        let statusMessage = results.data.statusMessage
-        let subbed = (statusMessage.split(" "))
+        let statusMessage = results.data.statusMessage;
+        let subbed = (statusMessage.split(" "));
         if (subbed[0] == undefined) return;
         if (subbed[1] != "0") {
             config.maxFlyTime = Number(subbed[1])
@@ -484,7 +497,6 @@ system.update = function() {
     }
 
    if (currentTick % 8 === 0) {
-
         execute(`scoreboard players remove @a[scores={flytime=1..}] flytime 1`)
     } else if (currentTick % 2 === 0) {
         execute(`scoreboard players remove @a[scores={APPS=1..}] APPS 1`)
@@ -526,8 +538,8 @@ system.update = function() {
     
 
     if (currentTick === 20) {
-        execute('tellraw @a {"rawtext":[{"text":"[GCD] by Imrglop loaded. Do §3/function gcd/help§r for commands."}]}');
-        broadcast(`GCD Config: ${JSON.stringify(config, null, " ")}`)
+        execute('tellraw @a[tag=GCDAdmin] {"rawtext":[{"text":"[GCD] by Imrglop loaded. Do §3/function gcd/help§r for commands."}]}');
+        broadcast(`GCD Config: ${JSON.stringify(config, null, " ")}`, "GCDAdmin")
     }
 
     execute("scoreboard players add @a[scores={flytime=..-2}] flytime 2");
@@ -541,7 +553,7 @@ system.update = function() {
     
     execute(`scoreboard players reset @a DPPS`)
 
-    execute(`scoreboard players remove @a[scores={crystals=2..}] crystals 1`)
+    //execute(`scoreboard players remove @a[scores={crystals=2..}] crystals 1`)
 
     execute(`kick @a[tag=GCDBanned] §cYou have been banned from the server.§r`)
 
