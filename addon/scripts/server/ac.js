@@ -353,7 +353,9 @@ system.update = function() {
             execute(`scoreboard players add @a[scores={crystals=${config.maxCrystals.toString()}..}] timesflagged 1`);
 
             if (authorisePunishment) {
-                execute(`kick @a[scores={crystals=${config.maxCrystals.toString()}..}] ${disconnect.crystalaura}`);
+                execute(`scoreboard players set @a[scores={crystals=${config.maxCrystals.toString()}..}] crystals -5`)
+                execute(`kick @a[scores={crystals=-5}] ${disconnect.crystalaura}`);
+                execute(`scoreboard players set @a[scores={crystals=-5}] crystals 0`)
             }
 
             execute(`scoreboard players remove @a[scores={crystals=2..}] crystals 2`);
@@ -491,7 +493,7 @@ system.update = function() {
         execute(`execute @a[scores={flytime=${Math.floor(config.maxFlyTime*0.35).toString()}..}, tag=!GCDAdmin, m=!c] ~ ~ ~ execute @s ~ ~ ~ detect ~-1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~ air 0 execute @s ~ ~-1 ~ detect ~1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~ air 0 execute @s ~ ~ ~ detect ~ ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~ air 0 spreadplayers ~ ~ 0 1 @s`)
     }
 
-    if (currentTick % 50 === 0) {
+    if (currentTick % 200 === 0) {
         execute(`tag @a add GCD_VERIFY1392`)
         execute(`scoreboard players set @a[scores={reachflags=!0}] reachflags 0`);
     }
@@ -525,13 +527,6 @@ system.update = function() {
         execute(`kick @a[scores={APPS=-5},tag=!GCDAdmin] ${disconnect.macro}`)
         execute(`kick @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin] ${disconnect.nuker}`)
     }
-    //
-    
-    execute(`kick @a[scores={crystals=${config.maxDPPSExtent.toString()}..}] Too many packets`)
-
-    execute(`scoreboard players add @a[scores={crystals=${config.maxDPPSExtent.toString()}..}] timesflagged 1`)
-
-    execute(`scoreboard players reset @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin] DPPS`)
 
     //
 
