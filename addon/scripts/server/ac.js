@@ -22,7 +22,7 @@ var clipBlocks = [ // Too many clip blocks will lag the server, make sure you on
   "grass", 
   //"quartz_block", 
   "planks", 
-  "wood", 
+  //"wood", 
   //"log", 
   //"concrete", 
   //"stained_hardened_clay"
@@ -54,7 +54,9 @@ var illegalItems = [
   "underwater_torch",
   "lit_furnace",
   "reserved6",
-  "info_update"
+  "info_update",
+  "spawn_egg",
+  "fire"
 ]
   
 var xrayBlocks = [
@@ -81,7 +83,9 @@ var config = {
   "maxTimesFlagged":8,
   "maxReach":3.5, // latency cannot be measured, setting this to 3 is not recommended
   "maxDPPSExtent":10,
-  "maxReachUses":3 // max times they can hit a mob far away before getting flagged
+  "maxReachUses":3, // max times they can hit a mob far away before getting flagged
+  "sharpnessCheck":true, // check how much damage a player deals
+  "maxDamage": 30 // max amount of dmg the player deals
 }
     
 var disconnect = {
@@ -146,11 +150,11 @@ system.listenForEvent("minecraft:entity_use_item", function(eventData) {
 
         if (eventData.data.item_stack.item === "minecraft:"+illegalItems[i]) {
             let pos = system.getComponent(eventData.data.entity, "minecraft:position").data
-            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ clear @p`)
-            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ tell @a[tag=itemcheatnotify] §r@s[r=10000] §eused an illegal item (minecraft:${illegalItems[i]}).§r`)
-            execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ scoreboard players add @s timesflagged 1`)
+            execute(`execute @p[x=${pos.x.toString()}, y=${pos.y.toString()}, z=${pos.z.toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ clear @p`)
+            execute(`execute @p[x=${pos.x.toString()}, y=${pos.y.toString()}, z=${pos.z.toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ tell @a[tag=itemcheatnotify] §r@s[r=10000] §eused an illegal item (minecraft:${illegalItems[i]}).§r`)
+            execute(`execute @p[x=${pos.x.toString()}, y=${pos.y.toString()}, z=${pos.z.toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ scoreboard players add @s timesflagged 1`)
             if (authorisePunishment() == true) {
-                execute(`execute @p[x=${pos.x}, y=${pos.y}, z=${pos.z}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ kick @s ${disconnect.spawnitem}`)
+                execute(`execute @p[x=${pos.x.toString()}, y=${pos.y.toString()}, z=${pos.z.toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c] ~ ~ ~ kick @s ${disconnect.spawnitem}`)
             }
             result = true;
         }
@@ -158,6 +162,23 @@ system.listenForEvent("minecraft:entity_use_item", function(eventData) {
         if (result) return;
     }
 })
+
+system.listenForEvent("minecraft:entity_hurt", function(eventData) {
+    if (!config.sharpnessCheck || !(eventData.data.attacker)) return;
+    if (eventData.data.damage)
+        if (eventData.data.attacker)
+            if (eventData.data.attacker.__identifier__ == "minecraft:player") {
+                let maxDmg = config.maxDamage // + system.getComponent(eventData.data.attacker, "minecraft:attack").data.damage;
+                let attacker = eventData.data.attacker;
+                if (system.hasComponent(attacker, "minecraft:position") && eventData.data.damage > maxDmg) {
+                    let pos = system.getComponent(attacker, "minecraft:position").data;
+                    execute(`execute @p[x=${pos.x.toString()}, y=${pos.y.toString()}, z=${pos.z.toString()}] ~ ~ ~ scoreboard players add @s[tag=!GCDAdmin] timesflagged 1`)
+                    execute(`execute @p[x=${pos.x.toString()}, y=${pos.y.toString()}, z=${pos.z.toString()}] ~ ~ ~ clear @s[tag=!GCDAdmin]`)
+                    if (authorisePunishment) execute(`execute @p[x=${pos.x.toString()}, y=${pos.y.toString()}, z=${pos.z.toString()}] ~ ~ ~ kick @s[tag=!GCDAdmin] ${disconnect.spawnitem}`);
+                    execute(`execute @p[x=${pos.x.toString()}, y=${pos.y.toString()}, z=${pos.z.toString()}] ~ ~ ~ tell @a[tag=miscnotify] §r§6[GCD] §a@s[r=222]§r suspicious amount of damage: ${eventData.data.damage}`)
+                }
+    }
+});
 
 //            //
 // Reach Check //
@@ -351,15 +372,16 @@ system.update = function() {
             execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 spreadplayers ~ ~ 0 1 @s`);
 
             execute(`scoreboard players add @a[scores={crystals=${config.maxCrystals.toString()}..}] timesflagged 1`);
-
-            if (authorisePunishment) {
-                execute(`scoreboard players set @a[scores={crystals=${config.maxCrystals.toString()}..}] crystals -5`)
-                execute(`kick @a[scores={crystals=-5}] ${disconnect.crystalaura}`);
-                execute(`scoreboard players set @a[scores={crystals=-5}] crystals 0`)
-            }
-
-            execute(`scoreboard players remove @a[scores={crystals=2..}] crystals 2`);
+        
         }
+
+        if (authorisePunishment) {
+            execute(`scoreboard players set @a[scores={crystals=${config.maxCrystals.toString()}..}] crystals -5`)
+            execute(`kick @a[scores={crystals=-5}] ${disconnect.crystalaura}`);
+            execute(`scoreboard players set @a[scores={crystals=-5}] crystals 0`)
+        }
+
+        execute(`scoreboard players remove @a[scores={crystals=2..}] crystals 2`);
     }
 
     // Import Settings
@@ -467,6 +489,19 @@ system.update = function() {
     }
 
     system.executeCommand("scoreboard players test maxreachtimes GCD -2147483648", (commandResults) => setMaxReachTimes(commandResults))
+
+    function setMaxDamage(results) {
+        let statusMessage = results.data.statusMessage
+        let subbed = (statusMessage.split(" "))
+
+        if (Number(subbed[1]) != null) {
+        if (Number(subbed[1]) > 0) {
+            config.maxDamage = Number(subbed[1])
+        }
+    }
+    }
+
+    system.executeCommand("scoreboard players test maxdamage GCD -2147483648", (commandResults) => setMaxDamage(commandResults))
 
 
     // FLIGHT

@@ -17,5 +17,4 @@ scoreboard players add maxflytime GCD 0
 scoreboard players add showhealth GCD 0
 scoreboard players add debugmode GCD 0
 scoreboard players add neverkick GCD 0
-
-HIDE
+scoreboard players add maxdamage GCD 0
