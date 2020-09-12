@@ -286,7 +286,7 @@ system.listenForEvent("minecraft:player_attacked_entity", function(eventData) {
         if (distY < 0) distY = 0;
         if (distZ < 0) distZ = 0;
 
-        let distall = ((distX + distZ) / 2) - hitbox[0]// get the more "rounded" version of the hitbox
+        let distall = ((distX + distZ) / 2) - hitbox[0] // get the more "rounded" version of the range
 
         if (distall < 0) distall = 0;
 

@@ -20,10 +20,11 @@ X-Ray Notifier\
 Fly\
 No-clip\
 CrystalAura\
-AdventureModeBypass
+AdventureModeBypass\
+High Sharpness, Bane of arthropods or smite level
 
 # Version
-Version: 1.3.3\
+Version: 1.3.4\
 \
 Works On: 1.16
 # Information
