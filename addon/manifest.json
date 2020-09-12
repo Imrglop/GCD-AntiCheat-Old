@@ -1,25 +1,23 @@
 {
+  "format_version" : 2,
   "header" : {
-    "version" : [
-      1,
-      0,
-      0
-    ],
-    "name" : "GamingChairDebuff v1.3.3 AntiCheat",
-    "description" : "Want to prevent cheaters? With many different flags, this may help you out.\nMade by Imrglop. Enable experimental gameplay. §7/function gcd/help§r \n§cVersion:§31.3.3§r\n Updates? imrglopyt.000webhostapp.com/releases.html // github.com/Imrglop/GCD-AntiCheat",
-    "uuid" : "b96955a3-918c-4bab-ae0d-dd827e23e0e5"
+    "version" : [ 1, 0, 0 ],
+    "name" : "GamingChairDebuff v1.3.4 AntiCheat",
+    "description" : "Want to prevent cheaters? With many different flags, this may help you out.\nMade by Imrglop. Enable experimental gameplay. §7/function gcd/help§r \n§cVersion:§31.3.4§r\n Updates? imrglopyt.000webhostapp.com/releases.html // github.com/Imrglop/GCD-AntiCheat",
+    "uuid" : "b96955a3-918c-4bab-ae0d-dd827e23e0e5",
+    "min_engine_version": [1, 16, 0]
   },
   "modules" : [
     {
-      "version" : [
-        0,
-        0,
-        1
-      ],
+      "version" : [ 0, 0, 1 ],
       "type" : "data",
       "description" : "Made by Imrglop",
       "uuid" : "e89ac3a9-13d0-4d85-8e90-979faa211c13"
     }
   ],
-  "format_version" : 1
+  "metadata": {
+    "authors": [ "Imrglop" ],
+    "license": "LICENSE",
+    "url": "https://imrglopyt.000webhostapp.com/"
+  }
 }
