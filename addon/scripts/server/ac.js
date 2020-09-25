@@ -68,20 +68,37 @@ var xrayBlocks = [
 ]
   
 var config = {
-  "debugMode":false,
-  "kickPlayerOnFlag":true,
-  "maxCrystals":10,
+
+  "debugMode":true,
+  "kickPlayerOnFlag":true, //whether to kick or respawn a player whenever they get flagged
+  "maxCrystals":10, // for anti auto-crystal / crystalaura
   "showHealthOnActionbar":0,
-  "maxFlyTime":100, // max ticks to fly before getting kicked
-    "disableElytraCheck": true,
+
+  "maxFlyTime":100, // max semi-ticks to fly before getting kicked
+    "flyCheckEnabled": true,
+
   "maxAPPSExtent":30,
   "maxTimesFlagged":8,
-  "maxReach":3.5, // latency cannot be measured, setting this to 3 is not recommended
-    "maxReachUses":3, // max times they can hit a mob far away before getting flagged
-  "maxDPPSExtent":10,
+  "automaticBan": true, // automatic ban when they exceed maxtimesflagged amount
+
+  "maxReach":3.5, 
+   /* 
+   latency cannot be measured, setting max reach to 3 is not recommended
+   Reach measurement is not exact 
+   */
+  
+    "maxReachUses":3, // max times they can hit an entity far away before getting flagged
+
+  "maxDPPSExtent":10, // nuker: blocks to break in a single tick
+
   "sharpnessCheck":true, // check how much damage a player deals
     "maxDamage": 30,
-  "movementCheck":true // this is experimental
+
+  "movementCheck":true, // anti Speed, Bhop, glide, jetpack, etc
+    "allowElytras": true, // allow elytras in the movement check and fly check
+    "movementCheckCooldown": 10,
+    "movementCheckTolerance": 2 // How much they can move within a tick (1/20 of a second usually)
+
 }
     
 var disconnect = {
@@ -132,23 +149,21 @@ function broadcast(text, tag) {
 }
 
 function arrayContains(array, item) {
-    let returnVal = false;
     if (array instanceof Array)
         for (let i = 0; i < array.length; i++) {
             if (array[i] == item) {
-                returnVal = true;
-                return;
+                return true;
             }
         }
-    return returnVal;
+    return false;
 }
 
 function PlayerMoveEvent (plr, playerPosition, currentPosition) {
     let tags = system.getComponent(plr, "minecraft:tag");
     if (!tags) return;
-    if (!arrayContains(tags.data, "GCDAdmin")) {
+    if (!arrayContains(tags.data, "GCDAdmin") && plr.hasElytra == false) {
         let moveXZ = (Math.abs(playerPosition[0] - currentPosition[0])) + (Math.abs(playerPosition[2] - currentPosition[2]))
-        let moveY = (playerPosition[1] - currentPosition[1]);
+        //let moveY = (playerPosition[1] - currentPosition[1]);
         /*
         normally: 0.2212...
         sprinting: 0.3825...
@@ -158,15 +173,32 @@ function PlayerMoveEvent (plr, playerPosition, currentPosition) {
         flying: Y = 0.375...
         */
         
-        if (moveXZ > 2) {
+        if (moveXZ > config.movementCheckTolerance) {
             if (moveXZ > 40 || moveXZ % 1 === 0 || moveXZ % 0.5 === 0) {
                 // teleported probably
                 return;
             }
 
             if (config.debugMode == true) execute(`title @a actionbar Speed detected: ${moveXZ}`);
-            execute(`tp @a[tag=!speedFlag, name="${system.getComponent(plr, "minecraft:nameable").data.name}"] ${playerPosition[0]} ${playerPosition[1]} ${playerPosition[2]}`)
-            execute(`tag @a[name="${system.getComponent(plr, "minecraft:nameable").data.name}"] add speedFlag`)
+
+            let posComponent = system.getComponent(plr, "minecraft:position")
+
+            if (!(arrayContains(tags.data, "speedFlag"))) {
+                posComponent.data.x = playerPosition[0] // playerPosition is the past position
+                posComponent.data.y = playerPosition[1]
+                posComponent.data.z = playerPosition[2]
+                system.applyComponentChanges(plr, posComponent); 
+                if (system.hasComponent(plr, 'minecraft:nameable')) {
+                    let name = system.getComponent(plr, 'minecraft:nameable').data.name
+                    broadcast(`Player §e${name}§2 failed §aSpeed§c (Velocity:${moveXZ.toString()})`, 'speednotify');
+                    execute(`tag @a[name="${name}"] add speedFlag`)
+                }
+            }
+
+            // apply the changes to the player position instead of relying on commands
+
+            //execute(`tp @a[tag=!speedFlag, name="${system.getComponent(plr, "minecraft:nameable").data.name}"] ${playerPosition[0]} ${playerPosition[1]} ${playerPosition[2]}`)
+            
         }
         // Is non admin
         //execute(`say ${Math.abs(playerPosition[0] - currentPosition[0])}, ${Math.abs(playerPosition[1] - currentPosition[1])} ${Math.abs(playerPosition[2] - currentPosition[2])}`)
@@ -312,48 +344,30 @@ system.listenForEvent("minecraft:player_attacked_entity", function(eventData) {
         let attackerpos = system.getComponent(eventData.data.player, "minecraft:position").data;
 		
         let attackedhealth = system.getComponent(attacked, "minecraft:health").data;
-
-        if (system.hasComponent(attacked, "minecraft:nameable")) {
-            let name = system.getComponent(attacked, "minecraft:nameable");
-            if (name === "2391784253917842") {
-                execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}"] ~ ~ ~ tell @a[tag=reachnotify] §r@s[r=10000]§c failed Killaura.`)
-
-                execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}"] ~ ~ ~ scoreboard players add @s timesflagged 1`)
-                
-                if (authorisePunishment() == true) {
-                    
-                    let nameable = system.getComponent(player, "minecraft:nameable").data.name;
-
-                    execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}"] ~ ~ ~ tellraw @s {"rawtext":[{"text":"§cYou have been flagged for Cheating.§r"}]}`)
-    
-                    execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}"] ~ ~ ~ kill @s`)
-                
-                }
-            }
-        }
 		
-
     if (attackedpos != undefined) {
         let hitbox = [0.0, 0.0]; // width x height
-        if (system.hasComponent(attacked, "minecraft:collision_box")) { // does entity have a collision box component?
-            let hitboxC = system.getComponent(attacked, "minecraft:collision_box");
-            hitbox[0] = hitboxC.data.width;
-            hitbox[1] = hitboxC.data.height;
-        } else return; // if not, don't run this code
+            if (system.hasComponent(attacked, "minecraft:collision_box")) { // does entity have a collision box component?
+                let hitboxC = system.getComponent(attacked, "minecraft:collision_box");
+                hitbox[0] = hitboxC.data.width;
+                hitbox[1] = hitboxC.data.height;
+            } else return; // if not, don't run this code
+            
+            let distX = Math.abs(attackedpos.x - attackerpos.x) - hitbox[0]; // width hitbox is subtracted from it
+
+            let distY = Math.abs(attackedpos.y - attackerpos.y) - hitbox[1]; // remove height hitbox
+
+            let distZ = Math.abs(attackedpos.z - attackerpos.z) - hitbox[0];
+
+            if (distX < 0) distX = 0;
+            if (distY < 0) distY = 0;
+            if (distZ < 0) distZ = 0;
+
+            let distall = ((distX + distZ) / 2) - hitbox[0] // get the more "rounded" version of the range
+
+            if (distall < 0) distall = 0;
+
         
-        let distX = Math.abs(attackedpos.x - attackerpos.x) - hitbox[0]; // width hitbox is subtracted from it
-
-        let distY = Math.abs(attackedpos.y - attackerpos.y) - hitbox[1]; // remove height hitbox
-
-        let distZ = Math.abs(attackedpos.z - attackerpos.z) - hitbox[0];
-
-        if (distX < 0) distX = 0;
-        if (distY < 0) distY = 0;
-        if (distZ < 0) distZ = 0;
-
-        let distall = ((distX + distZ) / 2) - hitbox[0] // get the more "rounded" version of the range
-
-        if (distall < 0) distall = 0;
 
         if (attackedhealth.value != undefined) {
 
@@ -365,36 +379,36 @@ system.listenForEvent("minecraft:player_attacked_entity", function(eventData) {
         }
 
         execute(`scoreboard players add @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] APPS 1`)
-
-        if (config.debugMode) {
         
-            execute(`title @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] actionbar reach: ${distX.toString()} ${distY.toString()} ${distZ.toString()}}`)
-
-        }
-
-        if (distX >= config.maxReach || distZ >= config.maxReach || distall >= config.maxReach - 0.5) {
-
-            let nameable = system.getComponent(player, "minecraft:nameable").data.name;
-
-            // Patch to fix creative mode and admin flagging
-
-            execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ scoreboard players add @s[tag=!GCDAdmin, m=!c, name="${nameable}"] reachflags 1`);
-
-            execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}", scores={reachflags=${config.maxReachUses.toString()}..}] ~ ~ ~ tell @a[tag=reachnotify] §r@s[r=10000]§c failed Reach (x ${distX.toString().substring(0, 3)} y ${distY.toString().substring(0, 3)} z ${distZ.toString().substring(0, 3)} xz: ${distall.toString().substring(0, 3)})§r`)
-
-            execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}", scores={reachflags=${config.maxReachUses.toString()}..}] ~ ~ ~ scoreboard players add @s timesflagged 1`)
+            if (config.debugMode) {
             
-            if (authorisePunishment() == true) {
+                execute(`title @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] actionbar reach: ${distX.toString()} ${distY.toString()} ${distZ.toString()}}`)
 
-                execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}", scores={reachflags=${config.maxReachUses.toString()}..}] ~ ~ ~ tellraw @s {"rawtext":[{"text":"§cYou have been flagged for Cheating.§r"}]}`)
-
-                execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}", scores={reachflags=${config.maxReachUses.toString()}..}] ~ ~ ~ kill @s`)
-            
             }
-        }
-    }
 
-    // Player_attacked_entity doesn't target item or xp 
+            if (distX >= config.maxReach || distZ >= config.maxReach || distall >= config.maxReach - 0.5) {
+
+                let nameable = system.getComponent(player, "minecraft:nameable").data.name;
+
+                // Patch to fix creative mode and admin flagging
+
+                execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ scoreboard players add @s[tag=!GCDAdmin, m=!c, name="${nameable}"] reachflags 1`);
+
+                execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}", scores={reachflags=${config.maxReachUses.toString()}..}] ~ ~ ~ tell @a[tag=reachnotify] §r@s[r=10000]§c failed Reach (x ${distX.toString().substring(0, 3)} y ${distY.toString().substring(0, 3)} z ${distZ.toString().substring(0, 3)} xz: ${distall.toString().substring(0, 3)})§r`)
+
+                execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}", scores={reachflags=${config.maxReachUses.toString()}..}] ~ ~ ~ scoreboard players add @s timesflagged 1`)
+                
+                if (authorisePunishment() == true) {
+
+                    execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}", scores={reachflags=${config.maxReachUses.toString()}..}] ~ ~ ~ tellraw @s {"rawtext":[{"text":"§cYou have been flagged for Cheating.§r"}]}`)
+
+                    execute(`execute @p[x=${(attackerpos.x).toString()}, y=${(attackerpos.y).toString()}, z=${(attackerpos.z).toString()}] ~ ~ ~ execute @s[tag=!GCDAdmin, m=!c, name="${nameable}", scores={reachflags=${config.maxReachUses.toString()}..}] ~ ~ ~ kill @s`)
+                
+                }
+            }
+
+        }
+    
 
 })
 
@@ -579,7 +593,7 @@ system.update = function() {
 
     execute(`scoreboard players add @a[scores={flytime=-333}, tag=!GCDAdmin] timesflagged 1`)
 
-    if (authorisePunishment() == true) {
+    if (authorisePunishment() == true && config.flyCheckEnabled) {
 
         execute(`kick @a[scores={flytime=-333}, tag=!GCDAdmin] ${disconnect.fly}`)
 
@@ -589,9 +603,55 @@ system.update = function() {
 
     execute(`scoreboard players add @a flytime 0`)
 
-    if (currentTick % 10 === 0) {
-        execute(`tag @a remove speedFlag`)
+    if (currentTick % config.movementCheckCooldown === 0) {
+        execute(`tag @a remove speedFlag`);
 
+        for (i in playerPositions) {
+            const obj = playerPositions[i];
+            if (!(obj.entity)) {
+                delete playerPositions[i];
+                delete obj;
+                return;
+            }
+            if (!(system.isValidEntity(obj.entity))) {
+                delete playerPositions[i];
+                delete obj;
+                return;
+            }
+
+            let plr = obj.entity;
+
+            if (config.allowElytras) {
+
+                let armor_container = system.getComponent(plr, "minecraft:armor_container")
+                if (armor_container == undefined) return;
+                let hand_container = system.getComponent(plr, "minecraft:hand_container").data[0];
+                if (!hand_container) return;
+                if (!(system.hasComponent(plr, "minecraft:tag"))) return;
+                let tagComponent = system.getComponent(plr, "minecraft:tag");
+
+                if (armor_container.data[1].item !== "minecraft:elytra") {
+                    plr.hasElytra = false;
+                    if (arrayContains(tagComponent.data, "hasElytra")) {
+                        execute(`tag ${system.getComponent(plr, "minecraft:nameable").data.name}")} remove hasElytra`);
+                    }
+                }
+
+                else if (armor_container.data[1].item === "minecraft:elytra" && hand_container.item === "minecraft:fireworks") {
+                    // if they have an elytra give them a tag and set a boolean value that they do have an elytra
+                    plr.hasElytra = true;
+                    if (!arrayContains(tagComponent.data, "hasElytra")) {
+                        tagComponent.data[tagComponent.data.length] = "hasElytra";
+                        system.applyComponentChanges(plr, tagComponent);
+                    }
+                }
+
+            }
+
+        }
+    }
+
+    if (currentTick % 20 === 0) {
         execute(`execute @a[scores={flytime=${Math.floor(config.maxFlyTime*0.35).toString()}..}, tag=!GCDAdmin, m=!c] ~ ~ ~ execute @s ~ ~ ~ detect ~-1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~ air 0 execute @s ~ ~-1 ~ detect ~1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~ air 0 execute @s ~ ~ ~ detect ~ ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~ air 0 tell @a[tag=flynotify] §r§6[GCD]§e @s[r=20000]§c is possibly flying.§r`)
         execute(`execute @a[scores={flytime=${Math.floor(config.maxFlyTime*0.35).toString()}..}, tag=!GCDAdmin, m=!c] ~ ~ ~ execute @s ~ ~ ~ detect ~-1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~ air 0 execute @s ~ ~-1 ~ detect ~1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~ air 0 execute @s ~ ~ ~ detect ~ ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~ air 0 effect @s instant_damage 1 0`)
         execute(`execute @a[scores={flytime=${Math.floor(config.maxFlyTime*0.35).toString()}..}, tag=!GCDAdmin, m=!c] ~ ~ ~ execute @s ~ ~ ~ detect ~-1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~ air 0 execute @s ~ ~-1 ~ detect ~1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~ air 0 execute @s ~ ~ ~ detect ~ ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~ air 0 spreadplayers ~ ~ 0 1 @s`)
@@ -618,9 +678,11 @@ system.update = function() {
         execute(`scoreboard players add @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}] timesflagged 1`)
 
         //
-        execute(`execute @e[type=player, tag=!GCDAdmin, m=!c] ~ ~ ~ detect ~ ~-2 ~ air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~ air 0 execute @s ~ ~-1 ~ detect ~1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~ air 0 execute @s ~ ~ ~ detect ~ ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~ air 0 scoreboard players add @s flytime 1`)
 
-        execute(`tell @a[tag=GCDConfig] say GCD Config (/function gcd/help): ${JSON.stringify(config, null, " ")})`);   
+        if (config.flyCheckEnabled)
+            execute(`execute @e[type=player, tag=!GCDAdmin, m=!c, tag=!hasElytra] ~ ~ ~ detect ~ ~-2 ~ air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~ air 0 execute @s ~ ~-1 ~ detect ~1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~ air 0 execute @s ~ ~ ~ detect ~ ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~ air 0 scoreboard players add @s flytime 1`)
+
+        execute(`tell @a[tag=GCDConfig] §r§fGCD Config (/function gcd/help): §a${JSON.stringify(config, null, " ")})`);   
 
         execute(`tag @a remove GCDConfig`);
     }
@@ -648,7 +710,8 @@ system.update = function() {
 
     //TimesFlagged Kick
 
-    execute(`kick @a[scores={timesflagged=${config.maxTimesFlagged.toString()}..}, tag=!GCDAdmin] §4You have been permanently banned for §cCheating§4. Please contact the server administrators to appeal or if you think this is an error.§r`)
+    if (config.maxTimesFlagged)
+        execute(`kick @a[scores={timesflagged=${config.maxTimesFlagged.toString()}..}, tag=!GCDAdmin] §4You have been permanently banned for §cCheating§4. Please contact the server administrators to appeal or if you think this is an error.§r`)
     
     execute(`scoreboard players reset @a DPPS`)
 
@@ -657,29 +720,46 @@ system.update = function() {
     execute(`kick @a[tag=GCDBanned] §cYou have been banned from the server.§r`)
 
     if (config.movementCheck)
-    for (let i = 0; i < playerPositions.length; i++) {
-        const obj = playerPositions[i];
-        if (!(system.isValidEntity(obj.entity))) {delete playerPositions[i]; return};
-            const plrPosition = system.getComponent(obj.entity, "minecraft:position").data;
+        for (i in playerPositions) {
+            const obj = playerPositions[i];
+            if (!(obj.entity)) {
+                delete playerPositions[i];
+                delete obj;
+                return;
+            }
+            if (!(system.isValidEntity(obj.entity))) {
+                delete playerPositions[i];
+                delete obj;
+                return;
+            }
 
-        let pastPos = obj.posArray;
-        
-        let thisPos = [plrPosition.x, plrPosition.y, plrPosition.z]
+            const plrPosComponent = system.getComponent(obj.entity, "minecraft:position");
 
-        if (thisPos[0] != pastPos[0] || thisPos[1] != pastPos[1] || thisPos[2] != pastPos[2]) {
+            if (!plrPosComponent) return;
+            
+            const plrPosition = plrPosComponent.data;
 
-            PlayerMoveEvent(obj.entity, pastPos, thisPos);
+            let pastPos = obj.posArray;
+            
+            let thisPos = [plrPosition.x, plrPosition.y, plrPosition.z]
 
+            if (thisPos[0] != pastPos[0] || thisPos[1] != pastPos[1] || thisPos[2] != pastPos[2]) {
+
+                PlayerMoveEvent(obj.entity, pastPos, thisPos);
+
+            }
+
+            obj.posArray = thisPos;
+
+            let max = 3e7+1;
+
+            if (plrPosition.x > max || plrPosition.y > max || plrPosition.z > max) {
+                plrPosition.x = 0;
+                plrPosition.y = 0;
+                plrPosition.z = 0;
+                system.applyComponentChanges(obj.entity, plrPosComponent);// Anti crasher (attempt)
+            }
         }
-
-        obj.posArray = thisPos;
-
-        let max = 3e7+1;
-        //execute(`title @a actionbar ${max}, ${plrPosition.x}, ${plrPosition.y}, ${plrPosition.z}`)
-        if (plrPosition.x > max || plrPosition.y > max || plrPosition.z > max) {
-            execute(`tp @a[x=${plrPosition.x}, y=${plrPosition.y}, z=${plrPosition.z}] 0 0 0`)
-        }
-    }
 
 }
 
