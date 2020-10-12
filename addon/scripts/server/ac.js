@@ -90,14 +90,15 @@ var config = {
     "maxReachUses":3, // max times they can hit an entity far away before getting flagged
 
   "maxDPPSExtent":10, // nuker: blocks to break in a single tick
+    "NukerAffectedByTPS": true, // Recommended to keep at true
 
   "sharpnessCheck":true, // check how much damage a player deals
     "maxDamage": 30,
 
   "movementCheck":true, // anti Speed, Bhop, glide, jetpack, etc
     "allowElytras": true, // allow elytras in the movement check and fly check
-    "movementCheckCooldown": 10,
-    "movementCheckTolerance": 2 // How much they can move within a tick (1/20 of a second usually)
+    "movementCheckCooldown": 2, // At least 2
+    "movementCheckTolerance": 3.04 // How much they can move within a tick (1/20 of a second usually)
 
 }
     
@@ -113,6 +114,16 @@ var disconnect = {
   "toomanypackets":"You are sending too many packets. :("
 }
 
+var ServerStats = {
+    TPS: 20, // Needed to stop certain false flags just because it's laggy
+    MSPT: 50
+}
+
+var MSPTTimings = {
+    thisTime: Date.now(),
+    lastTime: Date.now()
+}
+
 system.initialize = function() {
     if (config.debugMode) {
         var scriptLoggerConfig = this.createEventData("minecraft:script_logger_config");
@@ -122,6 +133,124 @@ system.initialize = function() {
         this.broadcastEvent("minecraft:script_logger_config", scriptLoggerConfig);
         server.log("Debug Mode Enabled");
     }
+
+    function cmdCallback(results) {
+        let statusMessage = results.data.statusMessage;
+        let subbed = (statusMessage.split(" "));
+        if (subbed[0] == undefined) return;
+        if (subbed[1] != "0") {
+            config.maxFlyTime = Number(subbed[1])
+        }
+    }
+
+    system.executeCommand("scoreboard players test maxflytime GCD -2147483648", (commandResults) => cmdCallback(commandResults))
+
+    function setShowHealth(results) {
+        let statusMessage = results.data.statusMessage
+        let subbed = (statusMessage.split(" "))
+        config.showHealthOnActionbar = Number(subbed[1])
+    }
+
+    system.executeCommand("scoreboard players test showhealth GCD -2147483648", (commandResults) => setShowHealth(commandResults))
+
+    function maxTimesFlagged(results) {
+        let statusMessage = results.data.statusMessage
+        let subbed = (statusMessage.split(" "))
+
+        if (Number(subbed[1]) != null) {
+        if (Number(subbed[1]) != 0) {
+            config.maxTimesFlagged = Number(subbed[1])
+        }
+    }
+    }
+
+    system.executeCommand("scoreboard players test maxtimesflagged GCD -2147483648", (commandResults) => maxTimesFlagged(commandResults))
+
+    function maxDPPSExtent(results) {
+
+        let statusMessage = results.data.statusMessage
+        let subbed = (statusMessage.split(" "))
+
+        if (Number(subbed[1]) != null) {
+        if (Number(subbed[1]) > 1) {
+            config.maxDPPSExtent = Number(subbed[1])
+        }
+    }
+    }
+    
+
+    system.executeCommand("scoreboard players test nukertolerance GCD -2147483648", (commandResults) => maxDPPSExtent(commandResults))
+
+    function setKickStatus(results) {
+        let statusMessage = results.data.statusMessage
+        let subbed = (statusMessage.split(" "))
+
+        if (Number(subbed[1]) != null) {
+        if (Number(subbed[1]) > 0) {
+            config.kickPlayerOnFlag = false
+        } else {
+            config.kickPlayerOnFlag = true
+        }
+    }
+    }
+    
+
+    system.executeCommand("scoreboard players test neverkick GCD -2147483648", (commandResults) => setKickStatus(commandResults))
+
+    function setDebugMode(results) {
+        let statusMessage = results.data.statusMessage
+        let subbed = (statusMessage.split(" "))
+
+        if (Number(subbed[1]) != null) {
+        if (Number(subbed[1]) > 0) {
+            config.debugMode = true
+        } else {
+            config.debugMode = false
+        }
+    }
+    }
+
+    system.executeCommand("scoreboard players test debugmode GCD -2147483648", (commandResults) => setDebugMode(commandResults))
+
+    function setMaxCrystals(results) {
+        let statusMessage = results.data.statusMessage
+        let subbed = (statusMessage.split(" "))
+
+        if (Number(subbed[1]) != null) {
+        if (Number(subbed[1]) > 1) {
+            config.setMaxCrystals = Number(subbed[1])
+        }
+    }
+    }
+
+    system.executeCommand("scoreboard players test maxcrystals GCD -2147483648", (commandResults) => setMaxCrystals(commandResults))
+
+    function setMaxReachTimes(results) {
+        let statusMessage = results.data.statusMessage
+        let subbed = (statusMessage.split(" "))
+
+        if (Number(subbed[1]) != null) {
+        if (Number(subbed[1]) > 0) {
+            config.maxReachUses = Number(subbed[1])
+        }
+    }
+    }
+
+    system.executeCommand("scoreboard players test maxreachtimes GCD -2147483648", (commandResults) => setMaxReachTimes(commandResults))
+
+    function setMaxDamage(results) {
+        let statusMessage = results.data.statusMessage
+        let subbed = (statusMessage.split(" "))
+
+        if (Number(subbed[1]) != null) {
+        if (Number(subbed[1]) > 0) {
+            config.maxDamage = Number(subbed[1])
+        }
+    }
+    }
+
+    system.executeCommand("scoreboard players test maxdamage GCD -2147483648", (commandResults) => setMaxDamage(commandResults))
+    
 }
 
 var currentTick = 0;
@@ -160,10 +289,18 @@ function arrayContains(array, item) {
 
 function PlayerMoveEvent (plr, playerPosition, currentPosition) {
     let tags = system.getComponent(plr, "minecraft:tag");
+
+    if (plr.speedFlagD == undefined) {
+        plr.speedFlagD = 0;
+        return;
+    }
+
     if (!tags) return;
     if (!arrayContains(tags.data, "GCDAdmin") && plr.hasElytra == false) {
+        
         let moveXZ = (Math.abs(playerPosition[0] - currentPosition[0])) + (Math.abs(playerPosition[2] - currentPosition[2]))
-        //let moveY = (playerPosition[1] - currentPosition[1]);
+        let moveY = (currentPosition[1] - playerPosition[1]);
+
         /*
         normally: 0.2212...
         sprinting: 0.3825...
@@ -173,24 +310,31 @@ function PlayerMoveEvent (plr, playerPosition, currentPosition) {
         flying: Y = 0.375...
         */
         
-        if (moveXZ > config.movementCheckTolerance) {
-            if (moveXZ > 40 || moveXZ % 1 === 0 || moveXZ % 0.5 === 0) {
+        if (config.debugMode == true) execute(`title @a actionbar §3XZ:§b ${moveXZ}
+        §3Y:§b ${moveY}`)
+
+        let LogicalMovementCheckTolerance = ((config.movementCheckTolerance * 20) / ServerStats.TPS); // Anti false speed flag based on the TPS
+
+        if (moveXZ > LogicalMovementCheckTolerance || moveY > LogicalMovementCheckTolerance) {
+            if (moveXZ > 40) {
                 // teleported probably
                 return;
             }
 
-            if (config.debugMode == true) execute(`title @a actionbar Speed detected: ${moveXZ}`);
 
             let posComponent = system.getComponent(plr, "minecraft:position")
 
-            if (!(arrayContains(tags.data, "speedFlag"))) {
+            plr.speedFlagD++;
+
+            if (!(arrayContains(tags.data, "speedFlag")) && plr.speedFlagD >= 2) {
+                plr.speedFlagD = 0;
                 posComponent.data.x = playerPosition[0] // playerPosition is the past position
                 posComponent.data.y = playerPosition[1]
                 posComponent.data.z = playerPosition[2]
                 system.applyComponentChanges(plr, posComponent); 
                 if (system.hasComponent(plr, 'minecraft:nameable')) {
                     let name = system.getComponent(plr, 'minecraft:nameable').data.name
-                    broadcast(`Player §e${name}§2 failed §aSpeed§c (Velocity:${moveXZ.toString()})`, 'speednotify');
+                    broadcast(`Player §e${name}§2 failed §aSpeed§c (Velocity:${moveXZ.toString()}) (Max: ${LogicalMovementCheckTolerance})`, 'speednotify');
                     execute(`tag @a[name="${name}"] add speedFlag`)
                 }
             }
@@ -206,13 +350,8 @@ function PlayerMoveEvent (plr, playerPosition, currentPosition) {
 }
 
 
-function execute(command, fr) {
-    function commandCallBack(commandResults) {
-        if (fr != null) {
-            broadcast(`Callback: ${JSON.stringify(commandResults.data.statusMessage, null, " ")}`);
-        }
-    } 
-    system.executeCommand(command, (commandResults) => commandCallBack(commandResults))
+function execute(command) {
+    system.executeCommand(command, () => {});
 }
 
 //
@@ -262,6 +401,17 @@ system.listenForEvent("minecraft:entity_hurt", function(eventData) {
     }
 });
 
+system.listenForEvent("minecraft:entity_death", function(eventData) {
+    if (eventData.data.entity.__identifier__ == "minecraft:player") {
+        let tag = system.getComponent(eventData.data.attacker, "minecraft:tag");
+        if (!(arrayContains(tag.data, "speedFlag"))) {
+            // does not contain speedflag tag
+            tag.data.push("speedFlag"); // stop them from getting flagged by just respawning
+            system.applyComponentChanges(plr, tag);
+        }
+    }
+});
+
 //            //
 // Reach Check //
 //            //
@@ -274,11 +424,26 @@ system.listenForEvent("minecraft:entity_created", function(eventData) {
     } = eventData;
     
     if (entity.__identifier__ === "minecraft:player" && system.hasComponent(entity, "minecraft:position")) {
-        let posObj = system.getComponent(entity, "minecraft:position");
-        let posArray = [posObj.data.x, posObj.data.y, posObj.data.z]
-        let x = {posArray, entity};
-        playerPositions[playerPositions.length] = x;
+
+        if (system.hasComponent(entity, "minecraft:nameable")) {
+            if (system.getComponent(entity, "minecraft:nameable").data.name != "") {
+                execute(`tag @a add GCD_VERIFY1392`)
+                execute(`scoreboard players set @a[scores={reachflags=!0}] reachflags 0`);
+
+                let posObj = system.getComponent(entity, "minecraft:position");
+                let posArray = [posObj.data.x, posObj.data.y, posObj.data.z]
+                let x = {posArray, entity};
+                playerPositions[playerPositions.length] = x;
+            }
+        }
+    
     }
+
+    if (entity.__identifier__ === "gcd:view_server_stats") {
+        execute(`tell @a[tag=GCDAdmin] §r${JSON.stringify(ServerStats, null, "    ")}"`);
+        system.destroyEntity(entity);
+    }
+
 });
 
 system.listenForEvent("minecraft:player_destroyed_block", function(eventData) {
@@ -439,163 +604,55 @@ system.update = function() {
 
     //bookmark:update
 
+    MSPTTimings.thisTime = Date.now();
+
+    ServerStats.MSPT = MSPTTimings.thisTime - MSPTTimings.lastTime;
+
+    ServerStats.TPS = (Number((1000/ServerStats.MSPT).toFixed(1)));
+
     if (currentTick === 0) {
         execute(`function gcd/setup`)
     }
     
     if (currentTick % 2 == 0) {
-        for (let i = 0; i < clipBlocks.length; i++) {
 
-            execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 tell @a[tag=noclipnotify] §r@s[r=1000] §efailed No-Clip (Clipped through block §aminecraft:${clipBlocks[i]}).`);
-
-            execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 effect @s instant_damage 1 0 true`);
-
-            execute(`execute @e[tag=!GCDAdmin, type=player] ~ ~ ~ detect ~ ~ ~ ${clipBlocks[i]} -1 spreadplayers ~ ~ 0 1 @s`);
-
-            execute(`scoreboard players add @a[scores={crystals=${config.maxCrystals.toString()}..}] timesflagged 1`);
-        
-        }
+        execute(`scoreboard players set @a[scores={crystals=${config.maxCrystals.toString()}..}] crystals -5`)
 
         if (authorisePunishment) {
-            execute(`scoreboard players set @a[scores={crystals=${config.maxCrystals.toString()}..}] crystals -5`)
-            execute(`kick @a[scores={crystals=-5}] ${disconnect.crystalaura}`);
-            execute(`scoreboard players set @a[scores={crystals=-5}] crystals 0`)
+            //system.executeCommand(`testfor @a[scores={crystals=${config.maxCrystals.toString()}..}]`, (cc) => {if (cc.data.victims) {
+                execute(`kick @a[scores={crystals=-5}] ${disconnect.crystalaura}`);
+                
+            //}})
         }
+
+        execute(`scoreboard players add @a[scores={crystals=-5}] timesflagged 1`);
+        execute(`scoreboard players set @a[scores={crystals=-5}] crystals 0`)
 
         execute(`scoreboard players remove @a[scores={crystals=2..}] crystals 2`);
     }
 
-    // Import Settings
-
-    function cmdCallback(results) {
-        let statusMessage = results.data.statusMessage;
-        let subbed = (statusMessage.split(" "));
-        if (subbed[0] == undefined) return;
-        if (subbed[1] != "0") {
-            config.maxFlyTime = Number(subbed[1])
-        }
-    }
-
-    system.executeCommand("scoreboard players test maxflytime GCD -2147483648", (commandResults) => cmdCallback(commandResults))
-
-    function setShowHealth(results) {
-        let statusMessage = results.data.statusMessage
-        let subbed = (statusMessage.split(" "))
-        config.showHealthOnActionbar = Number(subbed[1])
-    }
-
-    system.executeCommand("scoreboard players test showhealth GCD -2147483648", (commandResults) => setShowHealth(commandResults))
-
-    function maxTimesFlagged(results) {
-        let statusMessage = results.data.statusMessage
-        let subbed = (statusMessage.split(" "))
-
-        if (Number(subbed[1]) != null) {
-        if (Number(subbed[1]) != 0) {
-            config.maxTimesFlagged = Number(subbed[1])
-        }
-    }
-    }
-
-    system.executeCommand("scoreboard players test maxtimesflagged GCD -2147483648", (commandResults) => maxTimesFlagged(commandResults))
-
-    function maxDPPSExtent(results) {
-
-        let statusMessage = results.data.statusMessage
-        let subbed = (statusMessage.split(" "))
-
-        if (Number(subbed[1]) != null) {
-        if (Number(subbed[1]) > 1) {
-            config.maxDPPSExtent = Number(subbed[1])
-        }
-    }
-    }
-    
-
-    system.executeCommand("scoreboard players test nukerinterval GCD -2147483648", (commandResults) => maxDPPSExtent(commandResults))
-
-    function setKickStatus(results) {
-        let statusMessage = results.data.statusMessage
-        let subbed = (statusMessage.split(" "))
-
-        if (Number(subbed[1]) != null) {
-        if (Number(subbed[1]) > 0) {
-            config.kickPlayerOnFlag = false
-        } else {
-            config.kickPlayerOnFlag = true
-        }
-    }
-    }
-    
-
-    system.executeCommand("scoreboard players test neverkick GCD -2147483648", (commandResults) => setKickStatus(commandResults))
-
-    function setDebugMode(results) {
-        let statusMessage = results.data.statusMessage
-        let subbed = (statusMessage.split(" "))
-
-        if (Number(subbed[1]) != null) {
-        if (Number(subbed[1]) > 0) {
-            config.debugMode = true
-        } else {
-            config.debugMode = false
-        }
-    }
-    }
-
-    system.executeCommand("scoreboard players test debugmode GCD -2147483648", (commandResults) => setDebugMode(commandResults))
-
-    function setMaxCrystals(results) {
-        let statusMessage = results.data.statusMessage
-        let subbed = (statusMessage.split(" "))
-
-        if (Number(subbed[1]) != null) {
-        if (Number(subbed[1]) > 1) {
-            config.setMaxCrystals = Number(subbed[1])
-        }
-    }
-    }
-
-    system.executeCommand("scoreboard players test maxcrystals GCD -2147483648", (commandResults) => setMaxCrystals(commandResults))
-
-    function setMaxReachTimes(results) {
-        let statusMessage = results.data.statusMessage
-        let subbed = (statusMessage.split(" "))
-
-        if (Number(subbed[1]) != null) {
-        if (Number(subbed[1]) > 0) {
-            config.maxReachUses = Number(subbed[1])
-        }
-    }
-    }
-
-    system.executeCommand("scoreboard players test maxreachtimes GCD -2147483648", (commandResults) => setMaxReachTimes(commandResults))
-
-    function setMaxDamage(results) {
-        let statusMessage = results.data.statusMessage
-        let subbed = (statusMessage.split(" "))
-
-        if (Number(subbed[1]) != null) {
-        if (Number(subbed[1]) > 0) {
-            config.maxDamage = Number(subbed[1])
-        }
-    }
-    }
-
-    system.executeCommand("scoreboard players test maxdamage GCD -2147483648", (commandResults) => setMaxDamage(commandResults))
-
-
     // FLIGHT
+    if (config.flyCheckEnabled && currentTick % 5 === 0) {
 
-    execute(`execute @a[scores={flytime=${config.maxFlyTime}..}, tag=!GCDAdmin] ~ ~ ~ tell @a[tag=flynotify] §r§6[GCD] §a@s[tag=!GCDAdmin] was flagged for flight, they have been kicked.`)
 
-    execute(`scoreboard players set @a[scores={flytime=${config.maxFlyTime}..}, tag=!GCDAdmin] flytime -333`)
+        execute(`execute @a[scores={flytime=${config.maxFlyTime}..}, tag=!GCDAdmin, m=!c] ~ ~ ~ tell @a[tag=flynotify] §r§6[GCD] §a@s[tag=!GCDAdmin] was flagged for flight, they have been kicked.`)
 
-    execute(`scoreboard players add @a[scores={flytime=-333}, tag=!GCDAdmin] timesflagged 1`)
+        execute(`scoreboard players set @a[scores={flytime=${config.maxFlyTime}..}, tag=!GCDAdmin, m=!c] flytime -333`)
 
-    if (authorisePunishment() == true && config.flyCheckEnabled) {
+        execute(`scoreboard players add @a[scores={flytime=-333}, tag=!GCDAdmin, m=!c] timesflagged 1`)
 
-        execute(`kick @a[scores={flytime=-333}, tag=!GCDAdmin] ${disconnect.fly}`)
+        if (authorisePunishment() == true) {
+
+            execute(`kick @a[scores={flytime=-333}, tag=!GCDAdmin, m=!c] ${disconnect.fly}`)
+        
+        }
+
+        execute(`execute @a[scores={flytime=${config.maxFlyTime}..}, tag=!GCDAdmin] ~ ~ ~ tell @a[tag=flynotify] §r§6[GCD] §a@s[tag=!GCDAdmin] was flagged for flight, they have been kicked.`)
+
+        execute(`scoreboard players set @a[scores={flytime=${config.maxFlyTime}..}, tag=!GCDAdmin] flytime -333`)
+
+        execute(`scoreboard players add @a[scores={flytime=-333}, tag=!GCDAdmin] timesflagged 1`)
+
 
     }
 
@@ -657,25 +714,27 @@ system.update = function() {
         execute(`execute @a[scores={flytime=${Math.floor(config.maxFlyTime*0.35).toString()}..}, tag=!GCDAdmin, m=!c] ~ ~ ~ execute @s ~ ~ ~ detect ~-1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~ air 0 execute @s ~ ~-1 ~ detect ~1 ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~ air 0 execute @s ~ ~ ~ detect ~ ~-1 ~1 air 0 execute @s ~ ~ ~ detect ~-1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~1 ~-1 ~-1 air 0 execute @s ~ ~ ~ detect ~ ~-1 ~ air 0 spreadplayers ~ ~ 0 1 @s`)
     }
 
-    if (currentTick % 200 === 0) {
-        execute(`tag @a add GCD_VERIFY1392`)
-        execute(`scoreboard players set @a[scores={reachflags=!0}] reachflags 0`);
-    }
-
    if (currentTick % 8 === 0) {
         execute(`scoreboard players remove @a[scores={flytime=1..}] flytime 1`)
     } else if (currentTick % 2 === 0) {
+        let KATolerance = ((config.maxAPPSExtent * 20) / ServerStats.TPS)
         execute(`scoreboard players remove @a[scores={APPS=1..}] APPS 1`)
         execute(`scoreboard players add @a[scores={APPS=..-1}] APPS 1`)
-        execute(`execute @a[scores={APPS=${config.maxAPPSExtent}..},tag=!GCDAdmin] ~ ~ ~ tell @a[tag=killauranotify] §r§e @s §cwas flagged for Killaura.§r`)
-        execute(`scoreboard players set @a[scores={APPS=${config.maxAPPSExtent}..},tag=!GCDAdmin] APPS -5`)
+        execute(`execute @a[scores={APPS=${Math.floor(KATolerance)}}..},tag=!GCDAdmin] ~ ~ ~ tell @a[tag=killauranotify] §r§e @s §cwas flagged for Killaura.§r`)
+        execute(`scoreboard players set @a[scores={APPS=${Math.floor(KATolerance)}..},tag=!GCDAdmin] APPS -5`)
         execute(`scoreboard players add @a[scores={APPS=-5},tag=!GCDAdmin] timesflagged 1`)
 
         // NUKER
+        let MaxNukerValueExtent
+        if (config.NukerAffectedByTPS == true) {
+            MaxNukerValueExtent = Math.floor((config.maxDPPSExtent / 20) * ServerStats.TPS);
+        } else {
+            MaxNukerValueExtent = config.maxDPPSExtent;
+        }
 
-        execute(`execute @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin] ~ ~ ~ execute @s ~ ~ ~ tell @a[tag=nukernotify] §r§e @s §cwas flagged for Nuker.§r`)
-        execute(`scoreboard players set @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin], tag=!GCDAdmin] DPPS -5`)
-        execute(`scoreboard players add @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}] timesflagged 1`)
+        execute(`execute @a[scores={DPPS=${MaxNukerValueExtent}..}, tag=!GCDAdmin] ~ ~ ~ execute @s ~ ~ ~ tell @a[tag=nukernotify] §r§e @s §cwas flagged for Nuker.§r`)
+        execute(`scoreboard players set @a[scores={DPPS=${MaxNukerValueExtent}..}, tag=!GCDAdmin], tag=!GCDAdmin] DPPS -5`)
+        execute(`scoreboard players add @a[scores={DPPS=${MaxNukerValueExtent}..}] timesflagged 1`)
 
         //
 
@@ -691,7 +750,10 @@ system.update = function() {
 
     if (authorisePunishment() == true) {
         execute(`kick @a[scores={APPS=-5},tag=!GCDAdmin] ${disconnect.macro}`)
-        execute(`kick @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin] ${disconnect.nuker}`)
+        if (config.NukerAffectedByTPS)
+            execute(`kick @a[scores={DPPS=${config.maxDPPSExtent.toString()}..}, tag=!GCDAdmin] ${disconnect.nuker}`)
+        else
+            execute(`kick @a[scores={DPPS=${Math.floor((config.maxDPPSExtent / 20) * ServerStats.TPS)}..}, tag=!GCDAdmin] ${disconnect.nuker}`);
     }
 
     //
@@ -700,7 +762,7 @@ system.update = function() {
 
     if (currentTick === 20) {
         execute('tellraw @a[tag=GCDAdmin] {"rawtext":[{"text":"[GCD] by Imrglop loaded. Do §3/function gcd/help§r for commands."}]}');
-        broadcast(`GCD Config: ${JSON.stringify(config, null, " ")}`, "GCDAdmin")
+        broadcast(`GCD Config: ${JSON.stringify(JSON.stringify(config, null, " "))}`, "GCDAdmin")
     }
 
     execute("scoreboard players add @a[scores={flytime=..-2}] flytime 2");
@@ -751,16 +813,8 @@ system.update = function() {
 
             obj.posArray = thisPos;
 
-            let max = 3e7+1;
-
-            if (plrPosition.x > max || plrPosition.y > max || plrPosition.z > max) {
-                plrPosition.x = 0;
-                plrPosition.y = 0;
-                plrPosition.z = 0;
-                system.applyComponentChanges(obj.entity, plrPosComponent);// Anti crasher (attempt)
-            }
         }
-
+    MSPTTimings.lastTime = Date.now();
 }
 
 system.shutdown = function() {
