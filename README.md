@@ -1,7 +1,6 @@
 
 # [GCD] AntiCheat
 
-\
 
 The GCD AntiCheat uses the vanilla Scripting API to fight weaknesses in Minecraft: Bedrock Edition.
 
@@ -9,43 +8,43 @@ The GCD AntiCheat uses the vanilla Scripting API to fight weaknesses in Minecraf
 
   
 
-Since this uses the Scripting API, this will only work in Windows 10 servers, for example, a windows 10 edition hosted world or dedicated server.\
+Since this uses the Scripting API, this will only work in Windows 10 servers, for example, a windows 10 edition hosted world or dedicated server.
 
-Make sure you enable Experimental Gameplay on your world after installing the addon. \
+Make sure you enable Experimental Gameplay on your world after installing the addon.
 
-Once you have did that, to get GCDAdmin (to not get flagged) simply do /function gcd/admin .\
+Once you have did that, to get GCDAdmin (to not get flagged) simply do /function gcd/admin
 
-To be notified for all detected cheats, do /function notify/on/all .\
+To be notified for all detected cheats, do /function notify/on/all
 
-To edit the config, you can either edit the script itself, or to edit the ingame config do /function gcd/help \
+To edit the config, you can either edit the script itself, or to edit the ingame config do /function gcd/help
 
 It will show you how to edit the config ingame. To view the config, do /tag @s add GCDConfig
 
 # Flags
 
-Killaura / AutoClicker\
+Killaura / AutoClicker
 
-Reach \
+Reach
 
-Nuker\
+Nuker
 
-InfiniteBlockReach\
+InfiniteBlockReach
 
-Illegal block breaking (InstaBreak)\
+Illegal block breaking (InstaBreak)
 
-Illegal Items\
+Illegal Items
 
-X-Ray Notifier\
+X-Ray Notifier
 
-Fly\
+Fly
 
-CrystalAura\
+CrystalAura
 
-AdventureModeBypass\
+AdventureModeBypass
 
-High Sharpness, Bane of arthropods or smite level\
+High Sharpness, Bane of arthropods or smite level
 
-Fake / illegal name\
+Fake / illegal name
 
 Unusual Movement
 
@@ -53,9 +52,9 @@ Unusual Movement
 
 # Version
 
-Version: 1.3.5\
+Version: 1.3.5
 
-\
+
 
 Works On: 1.16
 
