@@ -1,0 +1,1 @@
+summon gcd:reload_config

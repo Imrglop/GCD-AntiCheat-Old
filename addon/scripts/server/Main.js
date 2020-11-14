@@ -2,26 +2,10 @@ const system = server.registerSystem(0, 0);
 
 /* 
 
-Made by Imrglop
-
-imrglopyt.000webhostapp.com/releases.html
-
-github.com/Imrglop/GCD-AntiCheat
+GCD Anti Cheat - Prevents Cheating in Minecraft Bedrock Dedicated Servers and Worlds
+Copyright (C) 2020 Imrglop
 
 */
-
-var clipBlocks = [ // Too many clip blocks will lag the server, make sure you only put solid blocks
-  "stone",
-  //"bedrock", 
-  "dirt", 
-  "grass", 
-  //"quartz_block", 
-  "planks", 
-  //"wood", 
-  //"log", 
-  //"concrete", 
-  //"stained_hardened_clay"
-];
 
 var unbreakable = [
   "invisiblebedrock",
@@ -69,8 +53,12 @@ var xrayBlocks = [
   
 var config = {
 
+  "fullIngameConfig" : true, // Allows you to set anything in the config in-game by adding the string json to gcd:config entity as a tag then reloading the config
+  // currently will not save when you reload the world / server
+  // view readme for how to use
+
   "debugMode":true,
-  "kickPlayerOnFlag":true, //whether to kick or respawn a player whenever they get flagged
+  "kickPlayerOnFlag":true, //to kick or respawn a player whenever they get flagged
   "maxCrystals":10, // for anti auto-crystal / crystalaura
   "showHealthOnActionbar":0,
 
@@ -95,7 +83,7 @@ var config = {
   "sharpnessCheck":true, // check how much damage a player deals
     "maxDamage": 30,
 
-  "movementCheck":true, // anti Speed, Bhop, glide, jetpack, etc
+  "movementCheck": true, // anti Speed, Bhop, glide, jetpack, etc
     "allowElytras": true, // allow elytras in the movement check and fly check
     "movementCheckCooldown": 2, // At least 2
     "movementCheckTolerance": 3.04 // How much they can move within a tick (1/20 of a second usually)
@@ -110,9 +98,10 @@ var disconnect = {
   "spawnitem":"§cYou have been kicked for Cheating/Spawning Items. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.",
   "macro":"§cYou have been kicked for Cheating/Killaura or AutoClicker. If you keep doing so, you may get banned.§r If you believe this is an error, contact the server administrators.",
   "adventurebypass":"§cYou have been kicked for Cheating-AdventureBypass / Block Cheats. If you keep doing so, you may get banned. §r If you believe this is an error, contact the server administrators.",
-  "crystalaura":"§cYou have been kicked for Cheating / CrystalAura.",
-  "toomanypackets":"You are sending too many packets. :("
+  "crystalaura":"§cYou have been kicked for Cheating / CrystalAura."
 }
+
+var configEntity;
 
 var ServerStats = {
     TPS: 20, // Needed to stop certain false flags just because it's laggy
@@ -124,16 +113,7 @@ var MSPTTimings = {
     lastTime: Date.now()
 }
 
-system.initialize = function() {
-    if (config.debugMode) {
-        var scriptLoggerConfig = this.createEventData("minecraft:script_logger_config");
-        scriptLoggerConfig.data.log_errors = true;
-        scriptLoggerConfig.data.log_information = true;
-        scriptLoggerConfig.data.log_warnings = true;
-        this.broadcastEvent("minecraft:script_logger_config", scriptLoggerConfig);
-        server.log("Debug Mode Enabled");
-    }
-
+function loadConfig() {
     function cmdCallback(results) {
         let statusMessage = results.data.statusMessage;
         let subbed = (statusMessage.split(" "));
@@ -250,7 +230,18 @@ system.initialize = function() {
     }
 
     system.executeCommand("scoreboard players test maxdamage GCD -2147483648", (commandResults) => setMaxDamage(commandResults))
-    
+}
+
+system.initialize = function() {
+    if (config.debugMode) {
+        var scriptLoggerConfig = this.createEventData("minecraft:script_logger_config");
+        scriptLoggerConfig.data.log_errors = true;
+        scriptLoggerConfig.data.log_information = true;
+        scriptLoggerConfig.data.log_warnings = true;
+        this.broadcastEvent("minecraft:script_logger_config", scriptLoggerConfig);
+        server.log("Debug Mode Enabled");
+    }
+    loadConfig();
 }
 
 var currentTick = 0;
@@ -277,16 +268,6 @@ function broadcast(text, tag) {
     execute(`tellraw @a[tag=${realTag}] {"rawtext":[{"text":"§r§6[GCD]§2 ${text}"}]}`)
 }
 
-function arrayContains(array, item) {
-    if (array instanceof Array)
-        for (let i = 0; i < array.length; i++) {
-            if (array[i] == item) {
-                return true;
-            }
-        }
-    return false;
-}
-
 function PlayerMoveEvent (plr, playerPosition, currentPosition) {
     let tags = system.getComponent(plr, "minecraft:tag");
 
@@ -296,7 +277,7 @@ function PlayerMoveEvent (plr, playerPosition, currentPosition) {
     }
 
     if (!tags) return;
-    if (!arrayContains(tags.data, "GCDAdmin") && plr.hasElytra == false) {
+    if (!tags.data.includes('GCDAdmin')) {
         
         let moveXZ = (Math.abs(playerPosition[0] - currentPosition[0])) + (Math.abs(playerPosition[2] - currentPosition[2]))
         let moveY = (currentPosition[1] - playerPosition[1]);
@@ -315,6 +296,13 @@ function PlayerMoveEvent (plr, playerPosition, currentPosition) {
 
         let LogicalMovementCheckTolerance = ((config.movementCheckTolerance * 20) / ServerStats.TPS); // Anti false speed flag based on the TPS
 
+        if (plr.hasElytra) {
+            return;
+        }
+
+        if (LogicalMovementCheckTolerance < config.movementCheckTolerance)
+            LogicalMovementCheckTolerance = config.movementCheckTolerance
+
         if (moveXZ > LogicalMovementCheckTolerance || moveY > LogicalMovementCheckTolerance) {
             if (moveXZ > 40) {
                 // teleported probably
@@ -326,7 +314,7 @@ function PlayerMoveEvent (plr, playerPosition, currentPosition) {
 
             plr.speedFlagD++;
 
-            if (!(arrayContains(tags.data, "speedFlag")) && plr.speedFlagD >= 2) {
+            if (!(tags.data.includes("speedFlag")) && plr.speedFlagD >= 2) {
                 plr.speedFlagD = 0;
                 posComponent.data.x = playerPosition[0] // playerPosition is the past position
                 posComponent.data.y = playerPosition[1]
@@ -403,11 +391,12 @@ system.listenForEvent("minecraft:entity_hurt", function(eventData) {
 
 system.listenForEvent("minecraft:entity_death", function(eventData) {
     if (eventData.data.entity.__identifier__ == "minecraft:player") {
-        let tag = system.getComponent(eventData.data.attacker, "minecraft:tag");
-        if (!(arrayContains(tag.data, "speedFlag"))) {
+        let tags = system.getComponent(eventData.data.entity, "minecraft:tag");
+        if (!tags) return;
+        if (!(tags.data.includes("speedFlag"))) {
             // does not contain speedflag tag
-            tag.data.push("speedFlag"); // stop them from getting flagged by just respawning
-            system.applyComponentChanges(plr, tag);
+            tags.data.push("speedFlag"); // stop them from getting flagged by just respawning
+            system.applyComponentChanges(eventData.data.entity, tags);
         }
     }
 });
@@ -422,6 +411,32 @@ system.listenForEvent("minecraft:entity_created", function(eventData) {
             entity
         }
     } = eventData;
+
+    if (entity.__identifier__ == "gcd:reload_config") {
+        loadConfig()
+        if (config.fullIngameConfig && configEntity && system.isValidEntity(configEntity)) {
+            let name = system.getComponent(configEntity, "minecraft:nameable");
+            if (name && name.data.name != "") {
+                // parse the config from the name
+                let parseTo = (name.data.name).split('\\').join('');
+                try {
+                    config = JSON.parse(parseTo);
+                    broadcast('Trying to parse config..', 'GCDAdmin')
+                } catch (exception) {
+                    broadcast('§cCould not load config from entity! §eJSON Error: ' + exception.toString(), 'GCDAdmin')
+                }
+            } else {
+                broadcast('§cCould not load config from entity! §eEntity does not have name' , 'GCDAdmin')
+            }
+            system.destroyEntity(configEntity);
+        }
+        broadcast("Config reloaded from scoreboard or config entity", "GCDAdmin")
+        system.destroyEntity(entity);
+    }
+
+    if (config.fullIngameConfig && entity.__identifier__ == "gcd:config") {
+        configEntity = entity;
+    }
     
     if (entity.__identifier__ === "minecraft:player" && system.hasComponent(entity, "minecraft:position")) {
 
@@ -433,7 +448,7 @@ system.listenForEvent("minecraft:entity_created", function(eventData) {
                 let posObj = system.getComponent(entity, "minecraft:position");
                 let posArray = [posObj.data.x, posObj.data.y, posObj.data.z]
                 let x = {posArray, entity};
-                playerPositions[playerPositions.length] = x;
+                playerPositions.push(x);
             }
         }
     
@@ -682,24 +697,34 @@ system.update = function() {
 
                 let armor_container = system.getComponent(plr, "minecraft:armor_container")
                 if (armor_container == undefined) return;
-                let hand_container = system.getComponent(plr, "minecraft:hand_container").data[0];
+                let hand_container = system.getComponent(plr, "minecraft:hand_container");
                 if (!hand_container) return;
                 if (!(system.hasComponent(plr, "minecraft:tag"))) return;
                 let tagComponent = system.getComponent(plr, "minecraft:tag");
 
                 if (armor_container.data[1].item !== "minecraft:elytra") {
                     plr.hasElytra = false;
-                    if (arrayContains(tagComponent.data, "hasElytra")) {
-                        execute(`tag ${system.getComponent(plr, "minecraft:nameable").data.name}")} remove hasElytra`);
+                    if (tagComponent.data.includes("hasElytra")) {
+                        for (let tag in tagComponent.data) {
+                            if (tagComponent.data[tag] == "hasElytra") {
+                                tagComponent.data[tag] = undefined;
+                                system.applyComponentChanges(plr, tagComponent);
+                                break;
+                            }
+                        }
                     }
                 }
 
-                else if (armor_container.data[1].item === "minecraft:elytra" && hand_container.item === "minecraft:fireworks") {
-                    // if they have an elytra give them a tag and set a boolean value that they do have an elytra
-                    plr.hasElytra = true;
-                    if (!arrayContains(tagComponent.data, "hasElytra")) {
-                        tagComponent.data[tagComponent.data.length] = "hasElytra";
-                        system.applyComponentChanges(plr, tagComponent);
+                else if (armor_container.data[1].item === "minecraft:elytra") {
+                        // doesn't matter if they aren't using fireworks or not here
+                        if (!tagComponent.data.includes("hasElytra")) {
+                            tagComponent.data.push("hasElytra");
+                            system.applyComponentChanges(plr, tagComponent);
+                        }
+                        if ( hand_container.data[0].item === "minecraft:fireworks" || hand_container.data[1].item === "minecraft:fireworks") {
+                        // if they have an elytra give them a tag and set a boolean value that they do have an elytra
+                        // only when they are using it with fireworks
+                        plr.hasElytra = true;
                     }
                 }
 
@@ -777,8 +802,6 @@ system.update = function() {
     
     execute(`scoreboard players reset @a DPPS`)
 
-    //execute(`scoreboard players remove @a[scores={crystals=2..}] crystals 1`)
-
     execute(`kick @a[tag=GCDBanned] §cYou have been banned from the server.§r`)
 
     if (config.movementCheck)
@@ -821,6 +844,4 @@ system.shutdown = function() {
     server.log(`[GCD] Shutting down AC..`);
 }
 
-server.log("[GCD] by Imrglop loaded.");
-
-// by Imrglop
+server.log("[GCD] Anti Cheat by Imrglop loaded.");
