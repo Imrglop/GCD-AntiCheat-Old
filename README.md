@@ -10,7 +10,7 @@ The GCD AntiCheat uses the vanilla Scripting API to fight weaknesses in Minecraf
 
 Since this uses the Scripting API, this will only work in Windows 10 servers, for example, a windows 10 edition hosted world or dedicated server.
 
-Make sure you enable Experimental Gameplay on your world after installing the addon.
+Make sure you enable the `Additional Modding Capabilities` option on your world after installing the addon.
 
 Once you have did that, to get GCDAdmin (to not get flagged) simply do /function gcd/admin
 
@@ -52,7 +52,7 @@ Unusual Movement
 
 # Version
 
-Version: 1.3.5
+Version: 1.3.6
 
 
 

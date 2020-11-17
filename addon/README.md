@@ -6,7 +6,7 @@ The GCD AntiCheat uses the vanilla Scripting API to fight weaknesses in Minecraf
 Minecraft World for Windows:\
 Download the `addon` folder as `.zip`, then extract it as a folder to:\
 `AppData\Local\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\behavior_packs`.\
-Then, enable Experimental Gameplay on your world add apply the behavior pack.\
+Then, enable Experimental Gameplay and `Additional Modding Capabilities` option on your world add apply the behavior pack.\
 Make sure it is a folder or the script may not load correctly.\
 \
 Behavior Pack for BDS:\
