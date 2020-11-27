@@ -1,12 +1,9 @@
 # objectives
 
 scoreboard objectives add GCD dummy
-scoreboard objectives add flytime dummy
 scoreboard objectives add DPPS dummy
 scoreboard objectives add APPS dummy
 scoreboard objectives add timesflagged dummy
-scoreboard objectives add reachflags dummy
-scoreboard objectives add crystals dummy
 
 # players
 
