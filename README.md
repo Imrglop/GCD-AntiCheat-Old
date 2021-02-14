@@ -4,6 +4,10 @@
 
 The GCD AntiCheat uses the vanilla Scripting API to fight weaknesses in Minecraft: Bedrock Edition.
 
+# Notice
+
+This project is no longer in development due to different factors. However, an improved and more organized revamp of it in TypeScript is in development, click [here](https://github.com/Imrglop/gcd-anticheat-v2) to view.
+
 # Setup
 
   
@@ -19,6 +23,8 @@ To be notified for all detected cheats, do /function notify/on/all
 To edit the config, you can either edit the script itself, or to edit the ingame config do /function gcd/help
 
 It will show you how to edit the config ingame. To view the config, do /tag @s add GCDConfig
+
+(Notice: If you have movement check on and want to teleport a player upwards or to a close place, give the player tag `speedFlag` first)
 
 # Flags
 
@@ -67,5 +73,5 @@ First make sure it's turned on, copy some JSON, do `/summon gcd:config "Paste JS
 example / default:
 
 ```json
-{\"fullIngameConfig\":true,\"debugMode\":true,\"kickPlayerOnFlag\":true,\"maxCrystals\":10,\"showHealthOnActionbar\":0,\"maxFlyTime\":100,\"flyCheckEnabled\":true,\"maxAPPSExtent\":30,\"maxTimesFlagged\":8,\"automaticBan\":true,\"maxReach\":3.5,\"maxReachUses\":3,\"maxDPPSExtent\":10,\"NukerAffectedByTPS\":true,\"sharpnessCheck\":true,\"maxDamage\":30,\"movementCheck\":true,\"allowElytras\":true,\"movementCheckCooldown\":2,\"movementCheckTolerance\":3.04}
+{\"fullIngameConfig\":true,\"debugMode\":false,\"kickPlayerOnFlag\":true,\"maxCrystals\":10,\"showHealthOnActionbar\":0,\"maxFlyTime\":100,\"flyCheckEnabled\":true,\"antiFastEat\":true,\"fastEatExceptions\":{\"minecraft:dried_kelp\":790},\"maxAPPSExtent\":30,\"maxTimesFlagged\":8,\"automaticBan\":true,\"maxReach\":3.5,\"maxReachUses\":3,\"reachUseReset\":200,\"reachFlagType\":1,\"maxDPPSExtent\":10,\"NukerAffectedByTPS\":true,\"sharpnessCheck\":true,\"maxDamage\":30,\"movementCheck\":true,\"allowElytras\":true,\"movementCheckCooldown\":2,\"movementCheckTolerance\":3.04,\"exploitPatch\":true}
 ```
